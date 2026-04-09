@@ -39,7 +39,7 @@ create table if not exists public.offers (
   issue_date date not null default current_date,
   valid_until date,
   notes text,
-  vat_rate text not null check (vat_rate in ('23', '8', 'zw', 'bez')),
+  vat_rate text not null check (vat_rate in ('23', '8', 'zw', 'bez', 'none')),
   totals_net numeric(12,2) not null default 0,
   totals_vat numeric(12,2) not null default 0,
   totals_gross numeric(12,2) not null default 0,

@@ -1,24 +1,27 @@
-# Generator ofert i umów
+# Generator ofert i umow
 
-Nowy, niezależny prototyp aplikacji wewnętrznej do:
-- logowania użytkowników,
+Wewnetrzna aplikacja do:
+- logowania uzytkownikow,
 - tworzenia ofert,
-- przygotowania generatora umów,
-- późniejszego zapisu dokumentów i edycji.
+- generowania umow remontowych,
+- zapisywania i edycji dokumentow,
+- wspolnej tablicy notatek.
 
-## Start lokalny
+## Uruchomienie
 
-Uruchom:
-- `start_site.bat`
+1. Ustaw zmienne srodowiskowe:
+- `SUPABASE_DB_URL`
+- `APP_SESSION_SECRET`
 
-Następnie otwórz w przeglądarce:
-- `http://127.0.0.1:4174`
+2. Zainstaluj zaleznosci:
+- `npm install`
 
-## Logowanie testowe
+3. Uruchom serwer:
+- `npm start`
 
-- `admin / admin123`
-- `wspolnik / wspolnik123`
+4. Otworz w przegladarce:
+- `http://localhost:8080`
 
-## Uwaga
+## Logowanie
 
-To jest prototyp frontendu. Logowanie i zapis są na razie demonstracyjne i działają tylko po stronie przeglądarki.
+Konta pobierane sa z tabeli `public.app_users` w bazie Supabase.

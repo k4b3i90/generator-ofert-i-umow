@@ -68,6 +68,7 @@ const state = {
   savedContracts: [],
   boardNotes: [],
   editingOfferId: null,
+  nextOfferNumber: "",
 };
 
 const currency = new Intl.NumberFormat("pl-PL", {
@@ -105,6 +106,57 @@ const showToast = (message) => {
   showToast.timeoutId = window.setTimeout(() => {
     toast.classList.remove("is-visible");
   }, 2600);
+};
+
+const apiRequest = async (url, options = {}) => {
+  const response = await fetch(url, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const error = new Error(data?.error || "REQUEST_FAILED");
+    error.status = response.status;
+    error.payload = data;
+    throw error;
+  }
+
+  return data;
+};
+
+const applyBootstrapData = (payload) => {
+  state.savedOffers = payload.offers || [];
+  state.savedContracts = payload.contracts || [];
+  state.boardNotes = payload.boardNotes || [];
+  state.nextOfferNumber = payload.nextOfferNumber || state.nextOfferNumber;
+  renderSavedOffers();
+  renderSavedContracts();
+  renderBoardNotes();
+};
+
+const refreshOfferNumberPreview = async () => {
+  if (state.editingOfferId) {
+    return;
+  }
+
+  try {
+    const payload = await apiRequest("/api/offers/preview-number", { method: "GET" });
+    state.nextOfferNumber = payload.nextOfferNumber;
+    offerNumber.textContent = payload.nextOfferNumber;
+    linkedOffer.value = payload.nextOfferNumber;
+  } catch (_error) {
+    offerNumber.textContent = state.nextOfferNumber || offerNumber.textContent;
+  }
 };
 
 const switchView = (isLoggedIn) => {
@@ -1036,18 +1088,6 @@ const editOffer = (offerId, tabToOpen = "offers") => {
   itemsBody.innerHTML = "";
   offer.items.forEach((item) => createItemRow(item));
   saveOfferButton.textContent = "Zapisz zmiany w ofercie";
-  paymentMode.value = "installments";
-  paymentInstallments.value = "2";
-  paymentHasAdvance.value = "yes";
-  paymentAdvanceValue.value = "30";
-  paymentAdvanceUnit.value = "%";
-  paymentAdvanceTaxMode.value = "brutto";
-  paymentAdvanceDate.value = new Date().toISOString().slice(0, 10);
-  paymentFinalDate.value = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  paymentScheduleDetails.value =
-    "I transza: 30% tytułem zaliczki przed rozpoczęciem prac, II transza: pozostała kwota po odbiorze końcowym.";
-  materialsPenaltyEnabled.checked = true;
-  breachPenaltyEnabled.checked = true;
   updatePaymentSettingsVisibility();
   updateTotals();
   syncContractPreview();
@@ -1101,15 +1141,22 @@ const renderBoardNotes = () => {
     .join("");
 
   boardNotesList.querySelectorAll(".delete-board-note").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.boardNotes = state.boardNotes.filter((note) => note.id !== button.dataset.noteId);
-      renderBoardNotes();
-      showToast("Usunięto notatkę z tablicy.");
+    button.addEventListener("click", async () => {
+      try {
+        const payload = await apiRequest(`/api/board-notes/${button.dataset.noteId}`, {
+          method: "DELETE",
+        });
+        state.boardNotes = payload.boardNotes || [];
+        renderBoardNotes();
+        showToast("Usunięto notatkę z tablicy.");
+      } catch (_error) {
+        showToast("Nie udało się usunąć notatki.");
+      }
     });
   });
 
   boardNotesList.querySelectorAll(".append-board-note").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const card = button.closest(".board-note-card");
       const textarea = card?.querySelector(".board-note-reply");
       const value = textarea?.value.trim() || "";
@@ -1118,54 +1165,40 @@ const renderBoardNotes = () => {
         return;
       }
 
-      const note = state.boardNotes.find((entry) => entry.id === button.dataset.noteId);
-      if (!note) {
-        return;
+      try {
+        const payload = await apiRequest(`/api/board-notes/${button.dataset.noteId}/entries`, {
+          method: "POST",
+          body: JSON.stringify({ text: value }),
+        });
+        state.boardNotes = payload.boardNotes || [];
+        renderBoardNotes();
+        showToast("Dopisano aktualizację do notatki.");
+      } catch (_error) {
+        showToast("Nie udało się dopisać aktualizacji.");
       }
-
-      note.updatedAt = new Date().toISOString();
-      note.updatedBy = state.user?.name || "Nieznany użytkownik";
-      note.entries.unshift({
-        id: crypto.randomUUID(),
-        text: value,
-        author: state.user?.name || "Nieznany użytkownik",
-        createdAt: new Date().toISOString(),
-      });
-
-      renderBoardNotes();
-      showToast("Dopisano aktualizację do notatki.");
     });
   });
 };
 
-const addBoardNote = () => {
+const addBoardNote = async () => {
   const value = boardNoteInput?.value.trim() || "";
   if (!value) {
     showToast("Wpisz treść notatki.");
     return;
   }
 
-  const timestamp = new Date().toISOString();
-  state.boardNotes.unshift({
-    id: crypto.randomUUID(),
-    text: value,
-    author: state.user?.name || "Nieznany użytkownik",
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    updatedBy: state.user?.name || "Nieznany użytkownik",
-    entries: [
-      {
-        id: crypto.randomUUID(),
-        text: value,
-        author: state.user?.name || "Nieznany użytkownik",
-        createdAt: timestamp,
-      },
-    ],
-  });
-
-  boardNoteInput.value = "";
-  renderBoardNotes();
-  showToast("Dodano nową notatkę do tablicy.");
+  try {
+    const payload = await apiRequest("/api/board-notes", {
+      method: "POST",
+      body: JSON.stringify({ text: value }),
+    });
+    state.boardNotes = payload.boardNotes || [];
+    boardNoteInput.value = "";
+    renderBoardNotes();
+    showToast("Dodano nową notatkę do tablicy.");
+  } catch (_error) {
+    showToast("Nie udało się dodać notatki.");
+  }
 };
 
 const renderSavedOffers = () => {
@@ -1281,12 +1314,13 @@ const resetOfferForm = () => {
   breachPenaltyTiming.value = "za każdy dzień naruszenia";
   breachCureDays.value = "3";
   updatePaymentSettingsVisibility();
-  offerNumber.textContent = nextOfferNumber();
+  offerNumber.textContent = state.nextOfferNumber || offerNumber.textContent;
   offerDate.textContent = formatDate(new Date());
   linkedOffer.value = offerNumber.textContent;
-  saveOfferButton.textContent = "Zapisz ofertę testowo";
+  saveOfferButton.textContent = "Zapisz ofertę";
   syncContractPreview();
   updateTotals();
+  refreshOfferNumberPreview();
 };
 
 const prefillDemoData = () => {
@@ -1318,7 +1352,7 @@ const prefillDemoData = () => {
   showToast("Wypełniono ofertę przykładowymi danymi.");
 };
 
-const saveOffer = () => {
+const saveOffer = async () => {
   const items = collectItems().filter((item) => item.name);
   const totals = getTotalsSnapshot();
   const totalLabel = totals.grossLabel;
@@ -1334,13 +1368,14 @@ const saveOffer = () => {
   }
 
   const offer = {
-    id: state.editingOfferId || crypto.randomUUID(),
-    number: state.editingOfferId ? offerNumber.textContent : nextOfferNumber(),
+    id: state.editingOfferId || undefined,
+    number: state.editingOfferId ? offerNumber.textContent : undefined,
     title: document.getElementById("offerTitle").value.trim(),
     author: state.user?.name || "Nieznany użytkownik",
     clientType: getClientType(),
     clientLabel: getClientLabel(),
     clientDetails: getClientDetails(),
+    issueDate: new Date().toISOString().slice(0, 10),
     date: offerDate.textContent,
     validUntil: document.getElementById("validUntil").value,
     notes: document.getElementById("offerNotes").value.trim(),
@@ -1352,61 +1387,70 @@ const saveOffer = () => {
     vatRate: vatRate.value,
     warranty: warrantyPeriod.value,
     contractTerms: getContractTerms(),
+    totals: {
+      net: collectItems().reduce((sum, item) => sum + item.total, 0),
+      vat:
+        (vatRate.value === "none" ? 0 : Number(vatRate.value) / 100) *
+        collectItems().reduce((sum, item) => sum + item.total, 0),
+      gross:
+        collectItems().reduce((sum, item) => sum + item.total, 0) +
+        (vatRate.value === "none" ? 0 : Number(vatRate.value) / 100) *
+          collectItems().reduce((sum, item) => sum + item.total, 0),
+    },
   };
 
-  const existingIndex = state.savedOffers.findIndex((entry) => entry.id === offer.id);
-  if (existingIndex >= 0) {
-    state.savedOffers[existingIndex] = offer;
-  } else {
-    offer.number = offerNumber.textContent;
-    state.savedOffers.unshift(offer);
-    state.offerSequence += 1;
+  try {
+    const payload = await apiRequest("/api/offers", {
+      method: "POST",
+      body: JSON.stringify(offer),
+    });
+    applyBootstrapData(payload);
+    showToast(state.editingOfferId ? "Zapisano zmiany w ofercie." : "Oferta i szkic umowy zostały zapisane.");
+    resetOfferForm();
+  } catch (_error) {
+    showToast("Nie udało się zapisać oferty.");
   }
-
-  const contract = {
-    offerId: offer.id,
-    offerNumber: offer.number,
-    clientLabel: offer.clientLabel,
-    totalLabel: offer.clientType === "company" ? `${offer.netLabel} + VAT` : offer.grossLabel,
-    warranty: offer.warranty,
-  };
-
-  const contractIndex = state.savedContracts.findIndex((entry) => entry.offerId === offer.id);
-  if (contractIndex >= 0) {
-    state.savedContracts[contractIndex] = contract;
-  } else {
-    state.savedContracts.unshift(contract);
-  }
-
-  renderSavedOffers();
-  renderSavedContracts();
-  showToast(existingIndex >= 0 ? "Zapisano zmiany w ofercie." : "Oferta i szkic umowy zostały zapisane.");
-  resetOfferForm();
 };
 
-loginForm?.addEventListener("submit", (event) => {
+loginForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(loginForm);
   const login = String(formData.get("login") || "").trim();
   const password = String(formData.get("password") || "").trim();
-  const user = demoUsers.find((entry) => entry.login === login && entry.password === password);
 
-  if (!user) {
+  try {
+    const payload = await apiRequest("/api/login", {
+      method: "POST",
+      body: JSON.stringify({ login, password }),
+    });
+    state.user = payload.user;
+    currentUserLabel.textContent = payload.user.name;
+    switchView(true);
+    const bootstrap = await apiRequest("/api/bootstrap", { method: "GET" });
+    applyBootstrapData(bootstrap);
+    resetOfferForm();
+    showToast(`Zalogowano jako ${payload.user.name}.`);
+  } catch (_error) {
     showToast("Nieprawidłowy login lub hasło.");
-    return;
   }
-
-  state.user = user;
-  currentUserLabel.textContent = user.name;
-  switchView(true);
-  resetOfferForm();
-  showToast(`Zalogowano jako ${user.name}.`);
 });
 
-logoutButton?.addEventListener("click", () => {
+logoutButton?.addEventListener("click", async () => {
+  try {
+    await apiRequest("/api/logout", { method: "POST" });
+  } catch (_error) {
+    // Intentionally ignore logout errors on the client.
+  }
   state.user = null;
+  state.savedOffers = [];
+  state.savedContracts = [];
+  state.boardNotes = [];
+  currentUserLabel.textContent = "-";
   loginForm.reset();
   switchView(false);
+  renderSavedOffers();
+  renderSavedContracts();
+  renderBoardNotes();
   showToast("Wylogowano.");
 });
 
@@ -1468,12 +1512,25 @@ document.querySelectorAll("[data-tab-target]").forEach((button) => {
   button.addEventListener("click", () => openTab(button.dataset.tabTarget));
 });
 
-createItemRow();
-offerDate.textContent = formatDate(new Date());
-offerNumber.textContent = nextOfferNumber();
-updatePaymentSettingsVisibility();
-linkedOffer.value = offerNumber.textContent;
-resetOfferForm();
-renderSavedOffers();
-renderSavedContracts();
-renderBoardNotes();
+const initializeApp = async () => {
+  createItemRow();
+  offerDate.textContent = formatDate(new Date());
+  updatePaymentSettingsVisibility();
+  switchView(false);
+
+  try {
+    const bootstrap = await apiRequest("/api/bootstrap", { method: "GET" });
+    state.user = bootstrap.user;
+    currentUserLabel.textContent = bootstrap.user.name;
+    switchView(true);
+    applyBootstrapData(bootstrap);
+    resetOfferForm();
+  } catch (_error) {
+    renderSavedOffers();
+    renderSavedContracts();
+    renderBoardNotes();
+    resetOfferForm();
+  }
+};
+
+initializeApp();
