@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generator ofert i umów</title>
+    <meta
+      name="description"
+      content="Wewnętrzna aplikacja do logowania, tworzenia ofert i generowania umów remontowych."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-bg"></div>
+    <main class="app-shell">
+      <section class="login-view" data-view="login">
+        <div class="login-card glass-card">
+          <div>
+            <p class="eyebrow">Strefa wewnętrzna</p>
+            <h1>Generator ofert i umów</h1>
+            <p class="lead">
+              Prototyp prywatnej aplikacji dla Ciebie i wspólnika. Logowanie działa
+              testowo, żebyśmy mogli od razu zobaczyć układ i przepływ pracy.
+            </p>
+          </div>
+          <form class="login-form" id="loginForm">
+            <label>
+              Login
+              <input type="text" name="login" placeholder="Wpisz login" required />
+            </label>
+            <label>
+              Hasło
+              <input type="password" name="password" placeholder="Wpisz hasło" required />
+            </label>
+            <button type="submit" class="button button-primary">Zaloguj</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="dashboard-view hidden" data-view="dashboard">
+        <header class="topbar glass-card">
+          <div>
+            <p class="eyebrow">Panel roboczy</p>
+            <h2>Wewnętrzny system dokumentów</h2>
+          </div>
+          <div class="topbar-meta">
+            <div>
+              <span class="meta-label">Zalogowany użytkownik</span>
+              <strong id="currentUser">-</strong>
+            </div>
+            <button type="button" class="button button-secondary" id="logoutButton">Wyloguj</button>
+          </div>
+        </header>
+
+        <div class="layout-grid">
+          <aside class="sidebar glass-card">
+            <button class="nav-link is-active" data-tab-target="offers">Oferty</button>
+            <button class="nav-link" data-tab-target="contracts">Umowy</button>
+            <button class="nav-link" data-tab-target="board">Tablica</button>
+            <button class="nav-link" data-tab-target="saved">Zapisane oferty i umowy</button>
+            <button class="nav-link" data-tab-target="users">Użytkownicy</button>
+          </aside>
+
+          <section class="content-stack">
+            <article class="panel glass-card tab-panel is-active" data-tab="offers">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Generator oferty</p>
+                  <h3>Nowa oferta</h3>
+                </div>
+                <div class="panel-badges">
+                  <span>Numer: <strong id="offerNumber">OF/2026/04/001</strong></span>
+                  <span>Data utworzenia: <strong id="offerDate"></strong></span>
+                </div>
+              </div>
+
+              <div class="form-grid form-grid-double">
+                <label>
+                  Tytuł oferty
+                  <input type="text" id="offerTitle" placeholder="Np. Oferta prac remontowych - mieszkanie 64 m2" />
+                </label>
+                <label>
+                  Oferta ważna do
+                  <input type="date" id="validUntil" />
+                </label>
+              </div>
+
+              <div class="section-box">
+                <div class="section-header">
+                  <h4>Typ klienta</h4>
+                </div>
+                <div class="choice-row">
+                  <label class="choice-pill">
+                    <input type="radio" name="clientType" value="individual" checked />
+                    <span>Klient indywidualny</span>
+                  </label>
+                  <label class="choice-pill">
+                    <input type="radio" name="clientType" value="company" />
+                    <span>Klient firmowy</span>
+                  </label>
+                </div>
+
+                <div class="form-grid" id="individualFields">
+                  <label>
+                    Imię i nazwisko
+                    <input type="text" id="individualName" placeholder="Np. Jan Kowalski" />
+                  </label>
+                  <label>
+                    Telefon
+                    <input type="text" id="individualPhone" placeholder="Np. 500 000 000" />
+                  </label>
+                  <label>
+                    E-mail
+                    <input type="email" id="individualEmail" placeholder="Np. jan@domena.pl" />
+                  </label>
+                  <label>
+                    Adres
+                    <input type="text" id="individualAddress" placeholder="Np. ul. Kwiatowa 10, 00-000 Warszawa" />
+                  </label>
+                </div>
+
+                <div class="form-grid hidden" id="companyFields">
+                  <label>
+                    Nazwa firmy
+                    <input type="text" id="companyName" placeholder="Np. ABC Invest Sp. z o.o." />
+                  </label>
+                  <label>
+                    NIP
+                    <input type="text" id="companyTaxId" placeholder="Np. 1234567890" />
+                  </label>
+                  <label>
+                    Osoba kontaktowa
+                    <input type="text" id="companyContact" placeholder="Np. Jan Kowalski" />
+                  </label>
+                  <label>
+                    Telefon
+                    <input type="text" id="companyPhone" placeholder="Np. 500 000 000" />
+                  </label>
+                  <label>
+                    E-mail
+                    <input type="email" id="companyEmail" placeholder="Np. biuro@firma.pl" />
+                  </label>
+                  <label>
+                    Adres firmy
+                    <input type="text" id="companyAddress" placeholder="Np. ul. Przemysłowa 8, 00-000 Warszawa" />
+                  </label>
+                </div>
+              </div>
+
+              <div class="section-box">
+                <div class="section-header split-header">
+                  <div>
+                    <h4>Pozycje oferty</h4>
+                    <p>Dodawaj dowolną liczbę pozycji. Suma liczy się automatycznie.</p>
+                  </div>
+                  <button type="button" class="button button-secondary" id="addItemButton">Dodaj pozycję</button>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="items-table">
+                    <thead>
+                      <tr>
+                        <th>Usługa</th>
+                        <th>Jednostka</th>
+                        <th>Ilość</th>
+                        <th>Cena</th>
+                        <th>Suma</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="itemsBody"></tbody>
+                  </table>
+                </div>
+
+                <div class="totals-box">
+                  <label>
+                    Stawka VAT
+                    <select id="vatRate">
+                      <option value="23">23%</option>
+                      <option value="8">8%</option>
+                      <option value="none">Bez faktury / bez VAT</option>
+                    </select>
+                  </label>
+
+                  <div class="summary-list">
+                    <div>
+                      <span>Netto</span>
+                      <strong id="netTotal">0,00 zł</strong>
+                    </div>
+                    <div>
+                      <span>VAT</span>
+                      <strong id="vatValue">0,00 zł</strong>
+                    </div>
+                    <div class="grand-total">
+                      <span>Razem</span>
+                      <strong id="grossTotal">0,00 zł</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-grid form-grid-double">
+                <label>
+                  Uwagi
+                  <textarea id="offerNotes" rows="5" placeholder="Opcjonalne uwagi do oferty, zakresu lub warunków realizacji."></textarea>
+                </label>
+                <div class="section-box">
+                  <div class="section-header">
+                    <h4>Podgląd logiki</h4>
+                  </div>
+                  <ul class="feature-points">
+                    <li>Oferta zapisuje autora i datę utworzenia.</li>
+                    <li>Numer oferty nadawany jest automatycznie.</li>
+                    <li>Po zapisie tworzy się też szkic powiązanej umowy.</li>
+                    <li>Zapisane oferty i umowy można ponownie otworzyć do edycji.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="action-row">
+                <button type="button" class="button button-secondary" id="prefillButton">Wypełnij przykładem</button>
+                <button type="button" class="button button-primary" id="saveOfferButton">Zapisz ofertę testowo</button>
+              </div>
+            </article>
+
+            <article class="panel glass-card tab-panel" data-tab="contracts">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Generator umowy</p>
+                  <h3>Umowa na prace remontowe</h3>
+                </div>
+              </div>
+              <div class="form-grid form-grid-double">
+                <label>
+                  Powiązana oferta
+                  <input type="text" id="linkedOffer" placeholder="Np. OF/2026/04/001" />
+                </label>
+                <label>
+                  Gwarancja
+                  <select id="warrantyPeriod">
+                    <option>6 miesięcy</option>
+                    <option selected>12 miesięcy</option>
+                    <option>24 miesiące</option>
+                    <option>36 miesięcy</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Data zawarcia umowy
+                  <input type="date" id="contractDate" />
+                </label>
+                <label>
+                  Miejscowość zawarcia
+                  <input type="text" id="contractCity" value="Warszawa" />
+                </label>
+                <label>
+                  Adres miejsca prac
+                  <input type="text" id="worksiteAddress" placeholder="Np. ul. Kwiatowa 8, Warszawa" />
+                </label>
+                <label>
+                  Kto zapewnia materiały
+                  <select id="materialsProvider">
+                    <option value="Wykonawca">Wykonawca</option>
+                    <option value="Zamawiający">Zamawiający</option>
+                  </select>
+                </label>
+                <label>
+                  Rozpoczęcie prac
+                  <input type="date" id="startDate" />
+                </label>
+                <label>
+                  Zakończenie prac
+                  <input type="date" id="endDate" />
+                </label>
+              </div>
+
+              <div class="section-box">
+                <div class="section-header">
+                  <h4>Automatyczne dane z oferty</h4>
+                </div>
+                <div class="summary-list contract-summary">
+                  <div>
+                    <span>Klient</span>
+                    <strong id="contractClient">Jeszcze nie wybrano oferty</strong>
+                  </div>
+                  <div>
+                    <span>Kwota umowy</span>
+                    <strong id="contractValue">0,00 zł</strong>
+                  </div>
+                  <div>
+                    <span>Zakres prac</span>
+                    <strong id="contractScope">Brak pozycji</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div class="section-box">
+                  <div class="section-header">
+                    <h4>Warunki płatności</h4>
+                  </div>
+                  <div class="form-grid compact-grid">
+                    <label>
+                      Tryb rozliczenia
+                      <select id="paymentMode">
+                        <option value="installments" selected>Płatność w transzach</option>
+                        <option value="single">Jedna płatność</option>
+                        <option value="after_completion">Płatność po zakończeniu prac</option>
+                      </select>
+                    </label>
+                    <label id="paymentInstallmentsField">
+                      Liczba transz
+                      <input type="number" id="paymentInstallments" min="1" max="6" step="1" value="2" />
+                    </label>
+                    <label>
+                      Czy uwzględnić zaliczkę
+                      <select id="paymentHasAdvance">
+                        <option value="no" selected>Nie</option>
+                        <option value="yes">Tak</option>
+                      </select>
+                    </label>
+                    <label id="paymentAdvanceValueField">
+                      Wysokość zaliczki
+                      <input type="number" id="paymentAdvanceValue" min="0" step="0.01" value="0" />
+                    </label>
+                    <label id="paymentAdvanceUnitField">
+                      Zaliczka jako
+                      <select id="paymentAdvanceUnit">
+                        <option value="zł" selected>Kwota (zł)</option>
+                        <option value="%">Procent (%)</option>
+                      </select>
+                    </label>
+                    <label id="paymentAdvanceTaxModeField">
+                      Kwota zaliczki
+                      <select id="paymentAdvanceTaxMode">
+                        <option value="brutto" selected>Brutto</option>
+                        <option value="netto">Netto</option>
+                      </select>
+                    </label>
+                    <label id="paymentAdvanceDateField">
+                      Termin wpłaty zaliczki
+                      <input type="date" id="paymentAdvanceDate" />
+                    </label>
+                    <label>
+                      Termin płatności końcowej
+                      <input type="date" id="paymentFinalDate" />
+                    </label>
+                    <label class="full-span">
+                      Harmonogram i opis płatności
+                      <textarea
+                        id="paymentScheduleDetails"
+                        rows="4"
+                        placeholder="Np. I transza 40% do 15.05.2026, II transza 30% po wykonaniu gładzi, III transza 30% po odbiorze końcowym."
+                      ></textarea>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="section-box">
+                  <div class="section-header">
+                    <h4>Kara za opóźnienie materiałów</h4>
+                  </div>
+                  <div class="form-grid compact-grid">
+                    <label class="full-span checkbox-row">
+                      <input type="checkbox" id="materialsPenaltyEnabled" checked />
+                      <span>Uwzględnij tę karę w umowie</span>
+                    </label>
+                    <label>
+                      Wartość
+                      <input type="number" id="materialsPenaltyValue" min="0" step="0.01" value="300" />
+                    </label>
+                    <label>
+                      Typ
+                      <select id="materialsPenaltyUnit">
+                        <option value="zł">Kwota (zł)</option>
+                        <option value="%">Procent (%)</option>
+                      </select>
+                    </label>
+                    <label class="full-span">
+                      Sposób naliczania
+                      <input type="text" id="materialsPenaltyTiming" value="za każdy dzień opóźnienia" />
+                    </label>
+                  </div>
+                </div>
+
+                <div class="section-box">
+                  <div class="section-header">
+                    <h4>Kara za naruszenie obowiązków</h4>
+                  </div>
+                  <div class="form-grid compact-grid">
+                    <label class="full-span checkbox-row">
+                      <input type="checkbox" id="breachPenaltyEnabled" checked />
+                      <span>Uwzględnij tę karę w umowie</span>
+                    </label>
+                    <label>
+                      Wartość
+                      <input type="number" id="breachPenaltyValue" min="0" step="0.01" value="2" />
+                    </label>
+                    <label>
+                      Typ
+                      <select id="breachPenaltyUnit">
+                        <option value="%">Procent (%)</option>
+                        <option value="zł">Kwota (zł)</option>
+                      </select>
+                    </label>
+                    <label>
+                      Termin na usunięcie naruszenia
+                      <input type="number" id="breachCureDays" min="1" step="1" value="3" />
+                    </label>
+                    <label class="full-span">
+                      Sposób naliczania
+                      <input type="text" id="breachPenaltyTiming" value="za każdy dzień naruszenia" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-box contract-draft">
+                <div class="section-header">
+                  <h4>Podgląd treści umowy</h4>
+                </div>
+                <div class="contract-preview" id="contractPreview"></div>
+              </div>
+            </article>
+
+            <article class="panel glass-card tab-panel" data-tab="board">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Tablica</p>
+                  <h3>Notatki</h3>
+                </div>
+              </div>
+              <div class="section-box board-intro">
+                <div class="section-header">
+                  <h4>Jak z tego korzystać</h4>
+                </div>
+                <p>
+                  To jest wspólna tablica dla Ciebie i wspólnika. Przypnij coś dla pamięci,
+                  zostaw wiadomość albo dopisz aktualizację do istniejącej notatki.
+                </p>
+                <ul class="feature-points">
+                  <li>Każda notatka pokazuje autora i moment utworzenia.</li>
+                  <li>Można dopisywać kolejne wpisy z datą i godziną zmiany.</li>
+                  <li>Każdą notatkę można usunąć, gdy nie jest już potrzebna.</li>
+                </ul>
+              </div>
+              <div class="section-box">
+                <div class="section-header">
+                  <h4>Dodaj notatkę</h4>
+                </div>
+                <div class="board-compose">
+                  <label>
+                    Treść notatki
+                    <textarea id="boardNoteInput" rows="4" placeholder="Np. Przypomnieć klientowi o zaliczce albo potwierdzić wejście na budowę."></textarea>
+                  </label>
+                  <button type="button" class="button button-primary" id="addBoardNoteButton">Dodaj notatkę</button>
+                </div>
+              </div>
+              <div class="saved-list board-list" id="boardNotesList">
+                <p class="empty-state">Tablica jest jeszcze pusta.</p>
+              </div>
+            </article>
+
+            <article class="panel glass-card tab-panel" data-tab="saved">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Archiwum</p>
+                  <h3>Zapisane oferty i umowy</h3>
+                </div>
+              </div>
+              <div class="archive-grid">
+                <section class="section-box archive-box">
+                  <div class="section-header">
+                    <h4>Oferty</h4>
+                  </div>
+                  <div class="saved-list" id="savedOffersList">
+                    <p class="empty-state">Jeszcze nic nie zapisano w tym prototypie.</p>
+                  </div>
+                </section>
+                <section class="section-box archive-box">
+                  <div class="section-header">
+                    <h4>Umowy</h4>
+                  </div>
+                  <div class="saved-list" id="savedContractsList">
+                    <p class="empty-state">Umowy pojawią się automatycznie po zapisaniu oferty.</p>
+                  </div>
+                </section>
+              </div>
+            </article>
+
+            <article class="panel glass-card tab-panel" data-tab="users">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Użytkownicy</p>
+                  <h3>Model dostępu</h3>
+                </div>
+              </div>
+              <div class="user-grid">
+                <article class="mini-card">
+                  <span class="pill">Wspólnik</span>
+                  <h4>Piotr Kowalczyk</h4>
+                </article>
+                <article class="mini-card">
+                  <span class="pill">Wspólnik</span>
+                  <h4>Petro Pundyk</h4>
+                </article>
+              </div>
+            </article>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <template id="itemRowTemplate">
+      <tr>
+        <td><input type="text" class="item-name" placeholder="Np. malowanie" /></td>
+        <td>
+          <select class="item-unit">
+            <option value="m2">m2</option>
+            <option value="m3">m3</option>
+            <option value="mb">mb</option>
+            <option value="kpl">kpl</option>
+            <option value="szt">szt</option>
+            <option value="roboczogodzina">roboczogodzina</option>
+          </select>
+        </td>
+        <td><input type="number" class="item-quantity" min="0" step="0.01" value="1" /></td>
+        <td><input type="number" class="item-price" min="0" step="0.01" value="0" /></td>
+        <td><strong class="item-total">0,00 zł</strong></td>
+        <td><button type="button" class="icon-button remove-item">Usuń</button></td>
+      </tr>
+    </template>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>
