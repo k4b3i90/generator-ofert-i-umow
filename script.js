@@ -1026,6 +1026,21 @@ const downloadContractPdf = (offerId) => {
   });
 };
 
+const deleteOffer = async (offerId) => {
+  try {
+    const payload = await apiRequest(`/api/offers/${offerId}`, {
+      method: "DELETE",
+    });
+    applyBootstrapData(payload);
+    if (state.editingOfferId === offerId) {
+      resetOfferForm();
+    }
+    showToast("Usunięto ofertę i powiązaną umowę.");
+  } catch (_error) {
+    showToast("Nie udało się usunąć tego zapisu.");
+  }
+};
+
 const editOffer = (offerId, tabToOpen = "offers") => {
   const offer = state.savedOffers.find((entry) => entry.id === offerId);
   if (!offer) {
@@ -1221,6 +1236,7 @@ const renderSavedOffers = () => {
           <div class="saved-actions">
             <button type="button" class="button button-secondary edit-offer" data-offer-id="${offer.id}">Edytuj ofertę</button>
             <button type="button" class="button button-secondary download-offer-pdf" data-offer-id="${offer.id}">Pobierz PDF</button>
+            <button type="button" class="button button-secondary delete-offer" data-offer-id="${offer.id}">X</button>
           </div>
         </article>
       `
@@ -1232,6 +1248,9 @@ const renderSavedOffers = () => {
   });
   savedOffersList.querySelectorAll(".download-offer-pdf").forEach((button) => {
     button.addEventListener("click", () => downloadOfferPdf(button.dataset.offerId));
+  });
+  savedOffersList.querySelectorAll(".delete-offer").forEach((button) => {
+    button.addEventListener("click", () => deleteOffer(button.dataset.offerId));
   });
 };
 
@@ -1254,6 +1273,7 @@ const renderSavedContracts = () => {
           <div class="saved-actions">
             <button type="button" class="button button-secondary edit-contract" data-offer-id="${contract.offerId}">Edytuj z oferty</button>
             <button type="button" class="button button-secondary download-contract-pdf" data-offer-id="${contract.offerId}">Pobierz PDF</button>
+            <button type="button" class="button button-secondary delete-contract" data-offer-id="${contract.offerId}">X</button>
           </div>
         </article>
       `
@@ -1265,6 +1285,9 @@ const renderSavedContracts = () => {
   });
   savedContractsList.querySelectorAll(".download-contract-pdf").forEach((button) => {
     button.addEventListener("click", () => downloadContractPdf(button.dataset.offerId));
+  });
+  savedContractsList.querySelectorAll(".delete-contract").forEach((button) => {
+    button.addEventListener("click", () => deleteOffer(button.dataset.offerId));
   });
 };
 

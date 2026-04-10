@@ -523,6 +523,20 @@ app.post("/api/offers", requireAuth, asyncHandler(async (req, res) => {
   }
 }));
 
+app.delete("/api/offers/:id", requireAuth, asyncHandler(async (req, res) => {
+  const offerId = req.params.id;
+
+  await pool.query("delete from public.offers where id = $1", [offerId]);
+
+  const data = await loadBootstrapData();
+  res.json({
+    offers: data.offers,
+    contracts: data.contracts,
+    boardNotes: data.boardNotes,
+    nextOfferNumber: data.nextNumber,
+  });
+}));
+
 app.post("/api/board-notes", requireAuth, asyncHandler(async (req, res) => {
   const body = String(req.body?.text || "").trim();
   if (!body) {
