@@ -19,7 +19,9 @@ const offerPanelTitle = document.getElementById("offerPanelTitle");
 const offerTitleLabel = document.getElementById("offerTitleLabel");
 const validUntilLabel = document.getElementById("validUntilLabel");
 const itemsSectionTitle = document.getElementById("itemsSectionTitle");
+const offerNumberBadgeLabel = document.getElementById("offerNumberBadgeLabel");
 const savedOffersList = document.getElementById("savedOffersList");
+const savedReceiptsList = document.getElementById("savedReceiptsList");
 const savedContractsList = document.getElementById("savedContractsList");
 const boardNotesList = document.getElementById("boardNotesList");
 const boardNoteInput = document.getElementById("boardNoteInput");
@@ -145,6 +147,7 @@ const applyBootstrapData = (payload) => {
   state.boardNotes = payload.boardNotes || [];
   state.nextOfferNumber = payload.nextOfferNumber || state.nextOfferNumber;
   renderSavedOffers();
+  renderSavedReceipts();
   renderSavedContracts();
   renderBoardNotes();
 };
@@ -155,7 +158,9 @@ const refreshOfferNumberPreview = async () => {
   }
 
   try {
-    const payload = await apiRequest("/api/offers/preview-number", { method: "GET" });
+    const payload = await apiRequest(`/api/offers/preview-number?kind=${encodeURIComponent(getDocumentKind())}`, {
+      method: "GET",
+    });
     state.nextOfferNumber = payload.nextOfferNumber;
     offerNumber.textContent = payload.nextOfferNumber;
     linkedOffer.value = payload.nextOfferNumber;
@@ -253,8 +258,11 @@ const updateDocumentKindUi = () => {
   offerTitleLabel.textContent = labels.titleLabel;
   validUntilLabel.textContent = labels.validUntilLabel;
   itemsSectionTitle.textContent = labels.itemsTitle;
+  offerNumberBadgeLabel.textContent = labels.numberLabel;
   saveOfferButton.textContent = state.editingOfferId ? `Zapisz zmiany w ${labels.singular}` : labels.saveLabel;
 };
+
+const isReceiptDocument = (offer = {}) => getOfferDocumentKind(offer) === "receipt";
 
 const getClientLabel = () => {
   if (getClientType() === "company") {
@@ -1277,12 +1285,14 @@ const addBoardNote = async () => {
 };
 
 const renderSavedOffers = () => {
-  if (!state.savedOffers.length) {
-    savedOffersList.innerHTML = '<p class="empty-state">Jeszcze nic nie zapisano w tym prototypie.</p>';
+  const offers = state.savedOffers.filter((offer) => !isReceiptDocument(offer));
+
+  if (!offers.length) {
+    savedOffersList.innerHTML = '<p class="empty-state">Nie ma jeszcze zapisanych ofert.</p>';
     return;
   }
 
-  savedOffersList.innerHTML = state.savedOffers
+  savedOffersList.innerHTML = offers
     .map(
       (offer) => {
         const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
@@ -1313,6 +1323,50 @@ const renderSavedOffers = () => {
     button.addEventListener("click", () => downloadOfferPdf(button.dataset.offerId));
   });
   savedOffersList.querySelectorAll(".delete-offer").forEach((button) => {
+    button.addEventListener("click", () => deleteOffer(button.dataset.offerId));
+  });
+};
+
+const renderSavedReceipts = () => {
+  if (!savedReceiptsList) {
+    return;
+  }
+
+  const receipts = state.savedOffers.filter(isReceiptDocument);
+
+  if (!receipts.length) {
+    savedReceiptsList.innerHTML = '<p class="empty-state">Nie ma jeszcze zapisanych rachunków.</p>';
+    return;
+  }
+
+  savedReceiptsList.innerHTML = receipts
+    .map(
+      (offer) => `
+        <article class="saved-offer-card">
+          <strong>${offer.number} - Rachunek: ${offer.title || "Bez tytułu"}</strong>
+          <div class="saved-meta">
+            <span>Autor: ${offer.author}</span>
+            <span>Klient: ${offer.clientLabel}</span>
+            <span>Data: ${offer.date}</span>
+            <span>Wartość: ${offer.totalLabel}</span>
+          </div>
+          <div class="saved-actions">
+            <button type="button" class="button button-secondary edit-receipt" data-offer-id="${offer.id}">Edytuj rachunek</button>
+            <button type="button" class="button button-secondary download-receipt-pdf" data-offer-id="${offer.id}">Pobierz PDF</button>
+            <button type="button" class="button button-secondary delete-receipt" data-offer-id="${offer.id}">X</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  savedReceiptsList.querySelectorAll(".edit-receipt").forEach((button) => {
+    button.addEventListener("click", () => editOffer(button.dataset.offerId));
+  });
+  savedReceiptsList.querySelectorAll(".download-receipt-pdf").forEach((button) => {
+    button.addEventListener("click", () => downloadOfferPdf(button.dataset.offerId));
+  });
+  savedReceiptsList.querySelectorAll(".delete-receipt").forEach((button) => {
     button.addEventListener("click", () => deleteOffer(button.dataset.offerId));
   });
 };
@@ -1497,7 +1551,9 @@ const saveOffer = async () => {
     showToast(
       state.editingOfferId
         ? `Zapisano zmiany w ${documentLabels.singular}.`
-        : `${documentLabels.singularCapital} i szkic umowy zostały zapisane.`
+        : documentLabels.kind === "receipt"
+          ? "Rachunek został zapisany."
+          : "Oferta i szkic umowy zostały zapisane."
     );
     resetOfferForm();
   } catch (_error) {
@@ -1543,6 +1599,7 @@ logoutButton?.addEventListener("click", async () => {
   switchView(false);
   renderSavedOffers();
   renderSavedContracts();
+  renderSavedReceipts();
   renderBoardNotes();
   showToast("Wylogowano.");
 });
@@ -1605,6 +1662,7 @@ document.querySelectorAll('input[name="documentKind"]').forEach((radio) => {
   radio.addEventListener("change", () => {
     updateDocumentKindUi();
     syncContractPreview();
+    refreshOfferNumberPreview();
   });
 });
 
@@ -1628,6 +1686,7 @@ const initializeApp = async () => {
   } catch (_error) {
     renderSavedOffers();
     renderSavedContracts();
+    renderSavedReceipts();
     renderBoardNotes();
     resetOfferForm();
   }

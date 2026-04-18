@@ -126,17 +126,47 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-const previewOfferNumber = async () => {
+const getDocumentNumberParts = (kind = "offer", date = new Date()) => {
+  const normalizedKind = kind === "receipt" ? "receipt" : "offer";
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return {
+    key: `${normalizedKind}:${year}:${month}`,
+    prefix: normalizedKind === "receipt" ? "RA" : "OF",
+    year,
+    month,
+  };
+};
+
+const formatDocumentNumber = ({ prefix, year, month }, value) =>
+  `${prefix}/${year}/${month}/${String(value).padStart(3, "0")}`;
+
+const previewDocumentNumber = async (kind = "offer") => {
   const now = new Date();
-  const year = String(now.getFullYear());
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const key = `offer:${year}:${month}`;
+  const parts = getDocumentNumberParts(kind, now);
   const { rows } = await pool.query(
     "select current_value from public.document_counters where counter_key = $1",
-    [key]
+    [parts.key]
   );
   const nextValue = (rows[0]?.current_value || 0) + 1;
-  return `OF/${year}/${month}/${String(nextValue).padStart(3, "0")}`;
+  return formatDocumentNumber(parts, nextValue);
+};
+
+const nextDocumentNumber = async (client, issueDate, kind = "offer") => {
+  const parts = getDocumentNumberParts(kind, new Date(issueDate));
+  const { rows } = await client.query(
+    `
+      insert into public.document_counters(counter_key, current_value, updated_at)
+      values ($1, 1, now())
+      on conflict (counter_key)
+      do update
+        set current_value = public.document_counters.current_value + 1,
+            updated_at = now()
+      returning current_value
+    `,
+    [parts.key]
+  );
+  return formatDocumentNumber(parts, rows[0].current_value);
 };
 
 const mapOfferItems = (rows) =>
@@ -251,6 +281,7 @@ const loadBootstrapData = async () => {
         o.offer_number
       from public.contracts c
       join public.offers o on o.id = c.offer_id
+      where coalesce(o.contract_terms->>'documentKind', 'offer') <> 'receipt'
       order by c.updated_at desc, c.created_at desc
     `
   );
@@ -288,7 +319,7 @@ const loadBootstrapData = async () => {
     : { rows: [] };
 
   const boardNotes = mapBoardNotes(notesResult.rows, noteEntriesResult.rows);
-  const nextNumber = await previewOfferNumber();
+  const nextNumber = await previewDocumentNumber("offer");
 
   return { offers, contracts, boardNotes, nextNumber };
 };
@@ -347,8 +378,8 @@ app.get("/api/bootstrap", requireAuth, asyncHandler(async (req, res) => {
   });
 }));
 
-app.get("/api/offers/preview-number", requireAuth, asyncHandler(async (_req, res) => {
-  const nextNumber = await previewOfferNumber();
+app.get("/api/offers/preview-number", requireAuth, asyncHandler(async (req, res) => {
+  const nextNumber = await previewDocumentNumber(req.query.kind);
   res.json({ nextOfferNumber: nextNumber });
 }));
 
@@ -365,6 +396,8 @@ app.post("/api/offers", requireAuth, asyncHandler(async (req, res) => {
     const totalsVat = Number(offer.totals?.vat ?? 0);
     const totalsGross = Number(offer.totals?.gross ?? 0);
     const issueDate = offer.issueDate || new Date().toISOString().slice(0, 10);
+    const documentKind = offer.contractTerms?.documentKind === "receipt" ? "receipt" : "offer";
+    const expectedNumberPrefix = documentKind === "receipt" ? "RA/" : "OF/";
 
     let offerId = offer.id || null;
     let offerNumber = offer.number || null;
@@ -375,9 +408,11 @@ app.post("/api/offers", requireAuth, asyncHandler(async (req, res) => {
 
     if (existingOffer) {
       offerNumber = existingOffer.offer_number;
+      if (!offerNumber.startsWith(expectedNumberPrefix)) {
+        offerNumber = await nextDocumentNumber(client, issueDate, documentKind);
+      }
     } else {
-      const numberResult = await client.query("select public.next_offer_number($1::date) as offer_number", [issueDate]);
-      offerNumber = numberResult.rows[0].offer_number;
+      offerNumber = await nextDocumentNumber(client, issueDate, documentKind);
       offerId = crypto.randomUUID();
     }
 
@@ -408,6 +443,7 @@ app.post("/api/offers", requireAuth, asyncHandler(async (req, res) => {
         )
         on conflict (id) do update
         set
+          offer_number = excluded.offer_number,
           title = excluded.title,
           author_user_id = excluded.author_user_id,
           client_type = excluded.client_type,
@@ -464,46 +500,50 @@ app.post("/api/offers", requireAuth, asyncHandler(async (req, res) => {
       );
     }
 
-    await client.query(
-      `
-        insert into public.contracts (
-          offer_id,
-          author_user_id,
-          client_label,
-          summary_total_label,
-          warranty_months,
-          contract_snapshot
-        )
-        values ($1,$2,$3,$4,$5,$6::jsonb)
-        on conflict (offer_id) do update
-        set
-          author_user_id = excluded.author_user_id,
-          client_label = excluded.client_label,
-          summary_total_label = excluded.summary_total_label,
-          warranty_months = excluded.warranty_months,
-          contract_snapshot = excluded.contract_snapshot,
-          updated_at = now()
-      `,
-      [
-        offerId,
-        req.user.id,
-        offer.clientLabel,
-        offer.clientType === "company" ? `${offer.netLabel} + VAT` : offer.grossLabel,
-        warrantyMonths,
-        JSON.stringify({
-          clientDetails: offer.clientDetails || {},
-          contractTerms: offer.contractTerms || {},
-          items,
-          totals: offer.totals || {},
-          labels: {
-            totalLabel: offer.totalLabel,
-            netLabel: offer.netLabel,
-            vatLabel: offer.vatLabel,
-            grossLabel: offer.grossLabel,
-          },
-        }),
-      ]
-    );
+    if (documentKind === "receipt") {
+      await client.query("delete from public.contracts where offer_id = $1", [offerId]);
+    } else {
+      await client.query(
+        `
+          insert into public.contracts (
+            offer_id,
+            author_user_id,
+            client_label,
+            summary_total_label,
+            warranty_months,
+            contract_snapshot
+          )
+          values ($1,$2,$3,$4,$5,$6::jsonb)
+          on conflict (offer_id) do update
+          set
+            author_user_id = excluded.author_user_id,
+            client_label = excluded.client_label,
+            summary_total_label = excluded.summary_total_label,
+            warranty_months = excluded.warranty_months,
+            contract_snapshot = excluded.contract_snapshot,
+            updated_at = now()
+        `,
+        [
+          offerId,
+          req.user.id,
+          offer.clientLabel,
+          offer.clientType === "company" ? `${offer.netLabel} + VAT` : offer.grossLabel,
+          warrantyMonths,
+          JSON.stringify({
+            clientDetails: offer.clientDetails || {},
+            contractTerms: offer.contractTerms || {},
+            items,
+            totals: offer.totals || {},
+            labels: {
+              totalLabel: offer.totalLabel,
+              netLabel: offer.netLabel,
+              vatLabel: offer.vatLabel,
+              grossLabel: offer.grossLabel,
+            },
+          }),
+        ]
+      );
+    }
 
     await client.query("commit");
 

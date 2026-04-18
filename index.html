@@ -63,6 +63,7 @@
             <button class="nav-link" data-tab-target="contracts">Umowy</button>
             <button class="nav-link" data-tab-target="board">Tablica</button>
             <button class="nav-link" data-tab-target="saved">Zapisane oferty i umowy</button>
+            <button class="nav-link" data-tab-target="receipts">Rachunki</button>
             <button class="nav-link" data-tab-target="users">Użytkownicy</button>
           </aside>
 
@@ -74,7 +75,7 @@
                   <h3 id="offerPanelTitle">Nowa oferta</h3>
                 </div>
                 <div class="panel-badges">
-                  <span>Numer: <strong id="offerNumber">OF/2026/04/001</strong></span>
+                  <span><span id="offerNumberBadgeLabel">Numer oferty</span>: <strong id="offerNumber">OF/2026/04/001</strong></span>
                   <span>Data utworzenia: <strong id="offerDate"></strong></span>
                 </div>
               </div>
@@ -489,13 +490,13 @@
               <div class="panel-heading">
                 <div>
                   <p class="eyebrow">Archiwum</p>
-                  <h3>Zapisane oferty, rachunki i umowy</h3>
+                  <h3>Zapisane oferty i umowy</h3>
                 </div>
               </div>
               <div class="archive-grid">
                 <section class="section-box archive-box">
                   <div class="section-header">
-                    <h4>Oferty / rachunki</h4>
+                    <h4>Oferty</h4>
                   </div>
                   <div class="saved-list" id="savedOffersList">
                     <p class="empty-state">Jeszcze nic nie zapisano w tym prototypie.</p>
@@ -510,6 +511,24 @@
                   </div>
                 </section>
               </div>
+            </article>
+
+            <article class="panel glass-card tab-panel" data-tab="receipts">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Dokumenty sprzedaży</p>
+                  <h3>Zapisane rachunki</h3>
+                </div>
+              </div>
+              <section class="section-box archive-box">
+                <div class="section-header">
+                  <h4>Rachunki</h4>
+                  <p>Trafiają tutaj tylko dokumenty zapisane jako rachunek. Rachunek nie tworzy szkicu umowy.</p>
+                </div>
+                <div class="saved-list" id="savedReceiptsList">
+                  <p class="empty-state">Nie ma jeszcze zapisanych rachunków.</p>
+                </div>
+              </section>
             </article>
 
             <article class="panel glass-card tab-panel" data-tab="users">
