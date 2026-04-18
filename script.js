@@ -1674,7 +1674,6 @@ const initializeApp = async () => {
   createItemRow();
   offerDate.textContent = formatDate(new Date());
   updatePaymentSettingsVisibility();
-  switchView(false);
 
   try {
     const bootstrap = await apiRequest("/api/bootstrap", { method: "GET" });
@@ -1688,6 +1687,7 @@ const initializeApp = async () => {
     renderSavedContracts();
     renderSavedReceipts();
     renderBoardNotes();
+    switchView(false);
     resetOfferForm();
   }
 };
