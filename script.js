@@ -361,6 +361,11 @@ const escapeHtml = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 
+const formatMultilineHtml = (value) => {
+  const text = String(value ?? "").trim();
+  return text ? escapeHtml(text) : "-";
+};
+
 const logoUrl = new URL("logo-oferteo.png", window.location.href).href;
 let cachedLogoDataUrl = null;
 
@@ -686,7 +691,7 @@ const buildOfferPdfHtml = (offer) => {
       </div>
       <section style="padding-top:8px;">
         <h3 style="margin:0 0 8px; font-size:13px;">Uwagi</h3>
-        <div>${escapeHtml(offer.notes || "-")}</div>
+        <div style="white-space:pre-wrap;">${formatMultilineHtml(offer.notes)}</div>
       </section>
     </div>
   `;
