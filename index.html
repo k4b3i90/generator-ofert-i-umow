@@ -59,7 +59,7 @@
 
         <div class="layout-grid">
           <aside class="sidebar glass-card">
-            <button class="nav-link is-active" data-tab-target="offers">Oferty</button>
+            <button class="nav-link is-active" data-tab-target="offers">Oferty / rachunki</button>
             <button class="nav-link" data-tab-target="contracts">Umowy</button>
             <button class="nav-link" data-tab-target="board">Tablica</button>
             <button class="nav-link" data-tab-target="saved">Zapisane oferty i umowy</button>
@@ -70,8 +70,8 @@
             <article class="panel glass-card tab-panel is-active" data-tab="offers">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow">Generator oferty</p>
-                  <h3>Nowa oferta</h3>
+                  <p class="eyebrow" id="offerGeneratorEyebrow">Generator oferty</p>
+                  <h3 id="offerPanelTitle">Nowa oferta</h3>
                 </div>
                 <div class="panel-badges">
                   <span>Numer: <strong id="offerNumber">OF/2026/04/001</strong></span>
@@ -79,13 +79,30 @@
                 </div>
               </div>
 
+              <div class="section-box document-kind-box">
+                <div class="section-header">
+                  <h4>Rodzaj dokumentu</h4>
+                  <p>Wybierz, czy przygotowujesz ofertę dla klienta, czy rachunek bez faktury.</p>
+                </div>
+                <div class="choice-row">
+                  <label class="choice-pill">
+                    <input type="radio" name="documentKind" value="offer" checked />
+                    Oferta
+                  </label>
+                  <label class="choice-pill">
+                    <input type="radio" name="documentKind" value="receipt" />
+                    Rachunek
+                  </label>
+                </div>
+              </div>
+
               <div class="form-grid form-grid-double">
                 <label>
-                  Tytuł oferty
+                  <span id="offerTitleLabel">Tytuł oferty</span>
                   <input type="text" id="offerTitle" placeholder="Np. Oferta prac remontowych - mieszkanie 64 m2" />
                 </label>
                 <label>
-                  Oferta ważna do
+                  <span id="validUntilLabel">Oferta ważna do</span>
                   <input type="date" id="validUntil" />
                 </label>
               </div>
@@ -155,7 +172,7 @@
               <div class="section-box">
                 <div class="section-header split-header">
                   <div>
-                    <h4>Pozycje oferty</h4>
+                    <h4 id="itemsSectionTitle">Pozycje oferty</h4>
                     <p>Dodawaj dowolną liczbę pozycji. Suma liczy się automatycznie.</p>
                   </div>
                   <button type="button" class="button button-secondary" id="addItemButton">Dodaj pozycję</button>
@@ -214,8 +231,8 @@
                     <h4>Podgląd logiki</h4>
                   </div>
                   <ul class="feature-points">
-                    <li>Oferta zapisuje autora i datę utworzenia.</li>
-                    <li>Numer oferty nadawany jest automatycznie.</li>
+                    <li id="documentLogicAuthor">Dokument zapisuje autora i datę utworzenia.</li>
+                    <li id="documentLogicNumber">Numer dokumentu nadawany jest automatycznie.</li>
                     <li>Po zapisie tworzy się też szkic powiązanej umowy.</li>
                     <li>Zapisane oferty i umowy można ponownie otworzyć do edycji.</li>
                   </ul>
@@ -472,13 +489,13 @@
               <div class="panel-heading">
                 <div>
                   <p class="eyebrow">Archiwum</p>
-                  <h3>Zapisane oferty i umowy</h3>
+                  <h3>Zapisane oferty, rachunki i umowy</h3>
                 </div>
               </div>
               <div class="archive-grid">
                 <section class="section-box archive-box">
                   <div class="section-header">
-                    <h4>Oferty</h4>
+                    <h4>Oferty / rachunki</h4>
                   </div>
                   <div class="saved-list" id="savedOffersList">
                     <p class="empty-state">Jeszcze nic nie zapisano w tym prototypie.</p>

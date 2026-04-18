@@ -14,6 +14,11 @@ const vatValue = document.getElementById("vatValue");
 const grossTotal = document.getElementById("grossTotal");
 const vatRate = document.getElementById("vatRate");
 const saveOfferButton = document.getElementById("saveOfferButton");
+const offerGeneratorEyebrow = document.getElementById("offerGeneratorEyebrow");
+const offerPanelTitle = document.getElementById("offerPanelTitle");
+const offerTitleLabel = document.getElementById("offerTitleLabel");
+const validUntilLabel = document.getElementById("validUntilLabel");
+const itemsSectionTitle = document.getElementById("itemsSectionTitle");
 const savedOffersList = document.getElementById("savedOffersList");
 const savedContractsList = document.getElementById("savedContractsList");
 const boardNotesList = document.getElementById("boardNotesList");
@@ -202,6 +207,55 @@ const getTotalsSnapshot = () => {
 
 const getClientType = () => document.querySelector('input[name="clientType"]:checked')?.value || "individual";
 
+const getDocumentKind = () => document.querySelector('input[name="documentKind"]:checked')?.value || "offer";
+
+const getDocumentLabels = (documentKind = getDocumentKind()) =>
+  documentKind === "receipt"
+    ? {
+        kind: "receipt",
+        singular: "rachunek",
+        singularCapital: "Rachunek",
+        header: "RACHUNEK",
+        generator: "Generator rachunku",
+        newTitle: "Nowy rachunek",
+        titleLabel: "Tytuł rachunku",
+        validUntilLabel: "Termin płatności",
+        itemsTitle: "Pozycje rachunku",
+        saveLabel: "Zapisz rachunek",
+        savedLabel: "Rachunek",
+        numberLabel: "Numer rachunku",
+        dateLabel: "Data wystawienia",
+        filenameSuffix: "rachunek",
+      }
+    : {
+        kind: "offer",
+        singular: "oferta",
+        singularCapital: "Oferta",
+        header: "OFERTA",
+        generator: "Generator oferty",
+        newTitle: "Nowa oferta",
+        titleLabel: "Tytuł oferty",
+        validUntilLabel: "Oferta ważna do",
+        itemsTitle: "Pozycje oferty",
+        saveLabel: "Zapisz ofertę",
+        savedLabel: "Oferta",
+        numberLabel: "Numer oferty",
+        dateLabel: "Data utworzenia",
+        filenameSuffix: "oferta",
+      };
+
+const getOfferDocumentKind = (offer = {}) => offer.contractTerms?.documentKind || "offer";
+
+const updateDocumentKindUi = () => {
+  const labels = getDocumentLabels();
+  offerGeneratorEyebrow.textContent = labels.generator;
+  offerPanelTitle.textContent = state.editingOfferId ? `Edycja: ${labels.singular}` : labels.newTitle;
+  offerTitleLabel.textContent = labels.titleLabel;
+  validUntilLabel.textContent = labels.validUntilLabel;
+  itemsSectionTitle.textContent = labels.itemsTitle;
+  saveOfferButton.textContent = state.editingOfferId ? `Zapisz zmiany w ${labels.singular}` : labels.saveLabel;
+};
+
 const getClientLabel = () => {
   if (getClientType() === "company") {
     return document.getElementById("companyName").value.trim() || "Nie podano firmy";
@@ -315,6 +369,7 @@ const getPaymentAmountLabel = (value, unit) => {
 
 const getContractTerms = () => {
   return {
+    documentKind: getDocumentKind(),
     contractDate: contractDate.value,
     contractCity: contractCity.value.trim() || "Warszawa",
     worksiteAddress: worksiteAddress.value.trim(),
@@ -554,6 +609,7 @@ const buildContractHtml = (offer) => {
 };
 
 const buildOfferPdfHtml = (offer) => {
+  const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
   const vatLabel = offer.vatRate === "none" ? "Bez faktury / bez VAT" : `${offer.vatRate}%`;
   const clientBlock =
     offer.clientType === "company"
@@ -589,13 +645,13 @@ const buildOfferPdfHtml = (offer) => {
   return `
     <div style="font-family: Arial, sans-serif; color: #1f1a17; font-size: 11px; line-height: 1.35; padding: 0;">
       <div style="display:grid; gap:4px; justify-items:center; margin: 8px 0 16px;">
-        <h1 style="margin:0; font-size:20px; text-align:center;">OFERTA</h1>
-        <h2 style="margin:0; font-size:13px; text-align:center; font-weight:600;">${escapeHtml(offer.title || "Oferta")}</h2>
+        <h1 style="margin:0; font-size:20px; text-align:center;">${documentLabels.header}</h1>
+        <h2 style="margin:0; font-size:13px; text-align:center; font-weight:600;">${escapeHtml(offer.title || documentLabels.singularCapital)}</h2>
       </div>
       <div style="margin-bottom:12px;">
-        <div><strong>Numer oferty:</strong> ${escapeHtml(offer.number)}</div>
-        <div><strong>Data utworzenia:</strong> ${escapeHtml(offer.date)}</div>
-        <div><strong>Oferta ważna do:</strong> ${escapeHtml(offer.validUntil || "-")}</div>
+        <div><strong>${documentLabels.numberLabel}:</strong> ${escapeHtml(offer.number)}</div>
+        <div><strong>${documentLabels.dateLabel}:</strong> ${escapeHtml(offer.date)}</div>
+        <div><strong>${documentLabels.validUntilLabel}:</strong> ${escapeHtml(offer.validUntil || "-")}</div>
         <div><strong>Autor:</strong> ${escapeHtml(offer.author)}</div>
       </div>
       <section style="margin-top:12px;">
@@ -996,17 +1052,18 @@ const renderContractPreview = () => {
 
 const downloadOfferPdf = (offerId) => {
   const offer = state.savedOffers.find((entry) => entry.id === offerId);
+  const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
   if (!offer) {
-    showToast("Nie udało się przygotować PDF tej oferty.");
+    showToast("Nie udało się przygotować PDF tego dokumentu.");
     return;
   }
   (async () => {
     await exportHtmlAsPdf({
       html: buildOfferPdfHtml(offer),
-      filename: `${offer.number}-oferta.pdf`,
+      filename: `${offer.number}-${documentLabels.filenameSuffix}.pdf`,
     });
   })().catch(() => {
-    showToast("Nie udało się wygenerować PDF tej oferty.");
+    showToast("Nie udało się wygenerować PDF tego dokumentu.");
   });
 };
 
@@ -1049,6 +1106,9 @@ const editOffer = (offerId, tabToOpen = "offers") => {
   }
 
   state.editingOfferId = offer.id;
+  const documentKind = getOfferDocumentKind(offer);
+  document.querySelector(`input[name="documentKind"][value="${documentKind}"]`).checked = true;
+  updateDocumentKindUi();
   offerNumber.textContent = offer.number;
   offerDate.textContent = offer.date;
   linkedOffer.value = offer.number;
@@ -1102,7 +1162,7 @@ const editOffer = (offerId, tabToOpen = "offers") => {
 
   itemsBody.innerHTML = "";
   offer.items.forEach((item) => createItemRow(item));
-  saveOfferButton.textContent = "Zapisz zmiany w ofercie";
+  updateDocumentKindUi();
   updatePaymentSettingsVisibility();
   updateTotals();
   syncContractPreview();
@@ -1224,9 +1284,11 @@ const renderSavedOffers = () => {
 
   savedOffersList.innerHTML = state.savedOffers
     .map(
-      (offer) => `
+      (offer) => {
+        const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
+        return `
         <article class="saved-offer-card">
-          <strong>${offer.number} - ${offer.title || "Bez tytułu"}</strong>
+          <strong>${offer.number} - ${documentLabels.savedLabel}: ${offer.title || "Bez tytułu"}</strong>
           <div class="saved-meta">
             <span>Autor: ${offer.author}</span>
             <span>Klient: ${offer.clientLabel}</span>
@@ -1239,7 +1301,8 @@ const renderSavedOffers = () => {
             <button type="button" class="button button-secondary delete-offer" data-offer-id="${offer.id}">X</button>
           </div>
         </article>
-      `
+      `;
+      }
     )
     .join("");
 
@@ -1293,6 +1356,8 @@ const renderSavedContracts = () => {
 
 const resetOfferForm = () => {
   state.editingOfferId = null;
+  document.querySelector('input[name="documentKind"][value="offer"]').checked = true;
+  updateDocumentKindUi();
   document.getElementById("offerTitle").value = "";
   document.getElementById("validUntil").value = "";
   document.getElementById("offerNotes").value = "";
@@ -1340,7 +1405,7 @@ const resetOfferForm = () => {
   offerNumber.textContent = state.nextOfferNumber || offerNumber.textContent;
   offerDate.textContent = formatDate(new Date());
   linkedOffer.value = offerNumber.textContent;
-  saveOfferButton.textContent = "Zapisz ofertę";
+  updateDocumentKindUi();
   syncContractPreview();
   updateTotals();
   refreshOfferNumberPreview();
@@ -1379,14 +1444,15 @@ const saveOffer = async () => {
   const items = collectItems().filter((item) => item.name);
   const totals = getTotalsSnapshot();
   const totalLabel = totals.grossLabel;
+  const documentLabels = getDocumentLabels();
 
   if (!document.getElementById("offerTitle").value.trim()) {
-    showToast("Dodaj tytuł oferty przed zapisem.");
+    showToast(`Dodaj tytuł ${documentLabels.singular} przed zapisem.`);
     return;
   }
 
   if (!items.length) {
-    showToast("Dodaj przynajmniej jedną pozycję oferty.");
+    showToast("Dodaj przynajmniej jedną pozycję dokumentu.");
     return;
   }
 
@@ -1428,7 +1494,11 @@ const saveOffer = async () => {
       body: JSON.stringify(offer),
     });
     applyBootstrapData(payload);
-    showToast(state.editingOfferId ? "Zapisano zmiany w ofercie." : "Oferta i szkic umowy zostały zapisane.");
+    showToast(
+      state.editingOfferId
+        ? `Zapisano zmiany w ${documentLabels.singular}.`
+        : `${documentLabels.singularCapital} i szkic umowy zostały zapisane.`
+    );
     resetOfferForm();
   } catch (_error) {
     showToast("Nie udało się zapisać oferty.");
@@ -1527,6 +1597,13 @@ saveOfferButton?.addEventListener("click", saveOffer);
 document.querySelectorAll('input[name="clientType"]').forEach((radio) => {
   radio.addEventListener("change", () => {
     toggleClientFields();
+    syncContractPreview();
+  });
+});
+
+document.querySelectorAll('input[name="documentKind"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    updateDocumentKindUi();
     syncContractPreview();
   });
 });
