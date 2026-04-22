@@ -325,6 +325,11 @@ const createItemRow = (prefill = {}) => {
   quantityInput.value = prefill.quantity ?? 1;
   priceInput.value = prefill.price ?? 0;
 
+  const resizeNameInput = () => {
+    nameInput.style.height = "auto";
+    nameInput.style.height = `${Math.max(nameInput.scrollHeight, 42)}px`;
+  };
+
   const recalc = () => {
     const quantity = Number(quantityInput.value) || 0;
     const price = Number(priceInput.value) || 0;
@@ -341,9 +346,13 @@ const createItemRow = (prefill = {}) => {
 
   quantityInput.addEventListener("input", recalc);
   priceInput.addEventListener("input", recalc);
-  nameInput.addEventListener("input", syncContractPreview);
+  nameInput.addEventListener("input", () => {
+    resizeNameInput();
+    syncContractPreview();
+  });
 
   itemsBody.appendChild(row);
+  resizeNameInput();
   recalc();
 };
 

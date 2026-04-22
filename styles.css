@@ -340,6 +340,7 @@ textarea {
 
 .items-table td {
   padding: 0 10px;
+  vertical-align: top;
 }
 
 .items-table tbody tr {
@@ -359,6 +360,15 @@ textarea {
 .item-total {
   display: block;
   min-width: 110px;
+}
+
+.item-name {
+  min-height: 42px;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .icon-button {
