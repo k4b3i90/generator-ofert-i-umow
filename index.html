@@ -199,6 +199,7 @@
                 </div>
 
                 <div class="totals-box">
+                  <div class="totals-controls">
                   <label>
                     Stawka VAT
                     <select id="vatRate">
@@ -207,11 +208,28 @@
                       <option value="none">Bez faktury / bez VAT</option>
                     </select>
                   </label>
+                  <label>
+                    Zniżka
+                    <select id="discountType">
+                      <option value="none">Brak zniżki</option>
+                      <option value="percent">Procentowa (%)</option>
+                      <option value="amount">Kwotowa (zł)</option>
+                    </select>
+                  </label>
+                  <label id="discountValueField" class="hidden">
+                    Wartość zniżki
+                    <input type="number" id="discountValue" min="0" step="0.01" value="0" placeholder="Np. 10 albo 500" />
+                  </label>
 
+                  </div>
                   <div class="summary-list">
                     <div>
                       <span>Netto</span>
                       <strong id="netTotal">0,00 zł</strong>
+                    </div>
+                    <div id="discountSummaryRow" hidden>
+                      <span id="discountSummaryLabel">Zniżka</span>
+                      <strong id="discountTotalValue">0,00 zł</strong>
                     </div>
                     <div>
                       <span>VAT</span>

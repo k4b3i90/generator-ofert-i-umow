@@ -14,6 +14,12 @@ const netTotal = document.getElementById("netTotal");
 const vatValue = document.getElementById("vatValue");
 const grossTotal = document.getElementById("grossTotal");
 const vatRate = document.getElementById("vatRate");
+const discountType = document.getElementById("discountType");
+const discountValue = document.getElementById("discountValue");
+const discountValueField = document.getElementById("discountValueField");
+const discountSummaryRow = document.getElementById("discountSummaryRow");
+const discountSummaryLabel = document.getElementById("discountSummaryLabel");
+const discountTotalValue = document.getElementById("discountTotalValue");
 const saveOfferButton = document.getElementById("saveOfferButton");
 const offerGeneratorEyebrow = document.getElementById("offerGeneratorEyebrow");
 const offerPanelTitle = document.getElementById("offerPanelTitle");
@@ -196,6 +202,65 @@ const collectItems = () => {
 
 const getChargeableItems = (items = collectItems()) => items.filter((item) => item.type !== "category" && item.name);
 
+const getDiscountSettings = (source = null) => {
+  if (source) {
+    const normalizedType = source.discountType === "percent" || source.discountType === "amount" ? source.discountType : "none";
+    const normalizedValue = Math.max(0, Number(source.discountValue) || 0);
+    return {
+      type: normalizedType,
+      value: normalizedType === "none" ? 0 : normalizedValue,
+    };
+  }
+
+  const normalizedType = discountType?.value === "percent" || discountType?.value === "amount" ? discountType.value : "none";
+  const normalizedValue = Math.max(0, Number(discountValue?.value) || 0);
+  return {
+    type: normalizedType,
+    value: normalizedType === "none" ? 0 : normalizedValue,
+  };
+};
+
+const calculateDocumentTotals = ({
+  items = collectItems(),
+  vatRateValue = vatRate?.value || "23",
+  discount = getDiscountSettings(),
+} = {}) => {
+  const subtotal = getChargeableItems(items).reduce((sum, item) => sum + item.total, 0);
+  const normalizedDiscountType = discount.type === "percent" || discount.type === "amount" ? discount.type : "none";
+  const inputDiscountValue = Math.max(0, Number(discount.value) || 0);
+  const normalizedDiscountValue =
+    normalizedDiscountType === "percent" ? Math.min(inputDiscountValue, 100) : inputDiscountValue;
+
+  let discountAmount = 0;
+  if (normalizedDiscountType === "percent") {
+    discountAmount = subtotal * (normalizedDiscountValue / 100);
+  } else if (normalizedDiscountType === "amount") {
+    discountAmount = normalizedDiscountValue;
+  }
+
+  discountAmount = Math.min(subtotal, discountAmount);
+
+  const discountedNet = Math.max(0, subtotal - discountAmount);
+  const vatMultiplier = vatRateValue === "none" ? 0 : Number(vatRateValue) / 100;
+  const vatAmount = discountedNet * vatMultiplier;
+  const grossAmount = discountedNet + vatAmount;
+
+  return {
+    baseNet: subtotal,
+    discountType: normalizedDiscountType,
+    discountValue: normalizedDiscountValue,
+    discountAmount,
+    net: discountedNet,
+    vat: vatAmount,
+    gross: grossAmount,
+    hasDiscount: discountAmount > 0,
+    netLabel: currency.format(discountedNet),
+    vatLabel: currency.format(vatAmount),
+    grossLabel: currency.format(grossAmount),
+    discountLabel: currency.format(discountAmount),
+  };
+};
+
 const getCategoryTotals = (items = collectItems()) => {
   const totals = new Map();
   let currentCategoryIndex = null;
@@ -235,27 +300,47 @@ const syncCategoryRowTotals = (items = collectItems()) => {
   });
 };
 
+const updateDiscountVisibility = () => {
+  const currentDiscount = getDiscountSettings();
+  const hasConfigurableDiscount = currentDiscount.type !== "none";
+
+  if (discountValueField) {
+    discountValueField.classList.toggle("hidden", !hasConfigurableDiscount);
+  }
+};
+
 const updateTotals = () => {
   const items = collectItems();
-  const subtotal = getChargeableItems(items).reduce((sum, item) => sum + item.total, 0);
-  const selectedVat = vatRate.value;
-  const vatMultiplier = selectedVat === "none" ? 0 : Number(selectedVat) / 100;
-  const vatAmount = subtotal * vatMultiplier;
-  const total = subtotal + vatAmount;
+  const totals = calculateDocumentTotals({
+    items,
+    vatRateValue: vatRate.value,
+    discount: getDiscountSettings(),
+  });
 
   syncCategoryRowTotals(items);
+  updateDiscountVisibility();
 
-  netTotal.textContent = currency.format(subtotal);
-  vatValue.textContent = currency.format(vatAmount);
-  grossTotal.textContent = currency.format(total);
+  netTotal.textContent = totals.netLabel;
+  vatValue.textContent = totals.vatLabel;
+  grossTotal.textContent = totals.grossLabel;
+
+  if (discountSummaryRow && discountSummaryLabel && discountTotalValue) {
+    discountSummaryRow.hidden = !totals.hasDiscount;
+    if (totals.hasDiscount) {
+      discountSummaryLabel.textContent =
+        totals.discountType === "percent" ? `Zniżka (${String(totals.discountValue).replace(".", ",")}%)` : "Zniżka kwotowa";
+      discountTotalValue.textContent = `- ${totals.discountLabel}`;
+    }
+  }
 };
 
 const getTotalsSnapshot = () => {
-  return {
-    netLabel: netTotal.textContent,
-    vatLabel: vatValue.textContent,
-    grossLabel: grossTotal.textContent,
-  };
+  const items = collectItems();
+  return calculateDocumentTotals({
+    items,
+    vatRateValue: vatRate.value,
+    discount: getDiscountSettings(),
+  });
 };
 
 const getClientType = () => document.querySelector('input[name="clientType"]:checked')?.value || "individual";
@@ -481,8 +566,11 @@ const getPaymentAmountLabel = (value, unit) => {
 };
 
 const getContractTerms = () => {
+  const discount = getDiscountSettings();
   return {
     documentKind: getDocumentKind(),
+    discountType: discount.type,
+    discountValue: String(discount.value || 0),
     contractDate: contractDate.value,
     contractCity: contractCity.value.trim() || "Warszawa",
     worksiteAddress: worksiteAddress.value.trim(),
@@ -727,7 +815,6 @@ const buildContractHtml = (offer) => {
 
 const buildOfferPdfHtml = (offer) => {
   const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
-  const vatLabel = offer.vatRate === "none" ? "Bez faktury / bez VAT" : `${offer.vatRate}%`;
   const categoryTotals = getCategoryTotals(offer.items || []);
   const clientBlock =
     offer.clientType === "company"
@@ -800,12 +887,7 @@ const buildOfferPdfHtml = (offer) => {
         </thead>
         <tbody>${itemsRows}</tbody>
       </table>
-      <div style="margin-top:16px; width:280px; margin-left:auto; font-size:10.5px;">
-        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Stawka VAT</span><span>${escapeHtml(vatLabel)}</span></div>
-        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Netto</span><span>${escapeHtml(offer.netLabel || "-")}</span></div>
-        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>VAT</span><span>${escapeHtml(offer.vatLabel || "-")}</span></div>
-        <div style="display:flex; justify-content:space-between; padding:6px 0; font-weight:700;"><span>Razem</span><span>${escapeHtml(offer.grossLabel || offer.totalLabel)}</span></div>
-      </div>
+      ${buildOfferPdfTotalsHtml(offer)}
       <section style="padding-top:8px;">
         <h3 style="margin:0 0 8px; font-size:13px;">Uwagi</h3>
         <div style="white-space:pre-wrap;">${formatMultilineHtml(offer.notes)}</div>
@@ -839,6 +921,35 @@ const buildOfferPdfRows = (offer) => {
         </tr>
       `
   );
+};
+
+const getOfferDiscountTerms = (offer = {}) => ({
+  discountType: offer.contractTerms?.discountType,
+  discountValue: offer.contractTerms?.discountValue,
+});
+
+const buildOfferPdfTotalsHtml = (offer) => {
+  const vatLabel = offer.vatRate === "none" ? "Bez faktury / bez VAT" : `${offer.vatRate}%`;
+  const totals = calculateDocumentTotals({
+    items: offer.items || [],
+    vatRateValue: offer.vatRate,
+    discount: getOfferDiscountTerms(offer),
+  });
+  const discountSummaryHtml = totals.hasDiscount
+    ? `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>${
+        totals.discountType === "percent" ? `Zniżka (${String(totals.discountValue).replace(".", ",")}%)` : "Zniżka kwotowa"
+      }</span><span>- ${escapeHtml(totals.discountLabel)}</span></div>`
+    : "";
+
+  return `
+    <div style="margin-top:16px; width:280px; margin-left:auto; font-size:10.5px;">
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Stawka VAT</span><span>${escapeHtml(vatLabel)}</span></div>
+      ${discountSummaryHtml}
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Netto</span><span>${escapeHtml(totals.netLabel || offer.netLabel || "-")}</span></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>VAT</span><span>${escapeHtml(totals.vatLabel || offer.vatLabel || "-")}</span></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; font-weight:700;"><span>Razem</span><span>${escapeHtml(totals.grossLabel || offer.grossLabel || offer.totalLabel)}</span></div>
+    </div>
+  `;
 };
 
 const buildOfferPdfHeaderHtml = (offer, continuation = false) => {
@@ -903,16 +1014,8 @@ const buildOfferPdfTableHtml = (rowsHtml) => `
 `;
 
 const buildOfferPdfTrailingHtml = (offer) => {
-  const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
-  const vatLabel = offer.vatRate === "none" ? "Bez faktury / bez VAT" : `${offer.vatRate}%`;
-
   return `
-    <div style="margin-top:16px; width:280px; margin-left:auto; font-size:10.5px;">
-      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Stawka VAT</span><span>${escapeHtml(vatLabel)}</span></div>
-      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Netto</span><span>${escapeHtml(offer.netLabel || "-")}</span></div>
-      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>VAT</span><span>${escapeHtml(offer.vatLabel || "-")}</span></div>
-      <div style="display:flex; justify-content:space-between; padding:6px 0; font-weight:700;"><span>Razem</span><span>${escapeHtml(offer.grossLabel || offer.totalLabel)}</span></div>
-    </div>
+    ${buildOfferPdfTotalsHtml(offer)}
     <section style="padding-top:12px;">
       <h3 style="margin:0 0 8px; font-size:13px;">Uwagi</h3>
       <div style="white-space:pre-wrap;">${formatMultilineHtml(offer.notes)}</div>
@@ -1493,6 +1596,8 @@ const editOffer = (offerId, tabToOpen = "offers") => {
   document.getElementById("offerNotes").value = offer.notes;
   warrantyPeriod.value = offer.warranty;
   vatRate.value = offer.vatRate;
+  discountType.value = offer.contractTerms.discountType || "none";
+  discountValue.value = offer.contractTerms.discountValue || "0";
   contractDate.value = offer.contractTerms.contractDate || "";
   contractCity.value = offer.contractTerms.contractCity || "Warszawa";
   worksiteAddress.value = offer.contractTerms.worksiteAddress || "";
@@ -1798,6 +1903,8 @@ const resetOfferForm = () => {
   itemsBody.innerHTML = "";
   createItemRow();
   vatRate.value = "23";
+  discountType.value = "none";
+  discountValue.value = "0";
   warrantyPeriod.value = "12 miesięcy";
   contractDate.value = new Date().toISOString().slice(0, 10);
   contractCity.value = "Warszawa";
@@ -1856,6 +1963,8 @@ const prefillDemoData = () => {
   document.getElementById("offerNotes").value =
     "Termin realizacji do ustalenia po akceptacji oferty. Materiały po stronie inwestora.";
   vatRate.value = "8";
+  discountType.value = "none";
+  discountValue.value = "0";
   worksiteAddress.value = "ul. Słoneczna 4, 05-500 Piaseczno";
   startDateInput.value = new Date().toISOString().slice(0, 10);
   endDateInput.value = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -1868,7 +1977,6 @@ const saveOffer = async () => {
   const items = collectItems().filter((item) => item.name);
   const chargeableItems = getChargeableItems(items);
   const totals = getTotalsSnapshot();
-  const totalLabel = totals.grossLabel;
   const documentLabels = getDocumentLabels();
 
   if (!document.getElementById("offerTitle").value.trim()) {
@@ -1894,24 +2002,19 @@ const saveOffer = async () => {
     validUntil: document.getElementById("validUntil").value,
     notes: document.getElementById("offerNotes").value.trim(),
     items,
-    totalLabel,
+    totalLabel: totals.grossLabel,
     netLabel: totals.netLabel,
     vatLabel: totals.vatLabel,
     grossLabel: totals.grossLabel,
     vatRate: vatRate.value,
-      warranty: warrantyPeriod.value,
-      contractTerms: getContractTerms(),
-      totals: {
-      net: chargeableItems.reduce((sum, item) => sum + item.total, 0),
-      vat:
-        (vatRate.value === "none" ? 0 : Number(vatRate.value) / 100) *
-        chargeableItems.reduce((sum, item) => sum + item.total, 0),
-      gross:
-        chargeableItems.reduce((sum, item) => sum + item.total, 0) +
-        (vatRate.value === "none" ? 0 : Number(vatRate.value) / 100) *
-          chargeableItems.reduce((sum, item) => sum + item.total, 0),
-      },
-    };
+    warranty: warrantyPeriod.value,
+    contractTerms: getContractTerms(),
+    totals: {
+      net: totals.net,
+      vat: totals.vat,
+      gross: totals.gross,
+    },
+  };
 
   try {
     const payload = await apiRequest("/api/offers", {
@@ -1985,6 +2088,14 @@ boardNoteInput?.addEventListener("keydown", (event) => {
   }
 });
 vatRate?.addEventListener("change", () => {
+  updateTotals();
+  syncContractPreview();
+});
+discountType?.addEventListener("change", () => {
+  updateTotals();
+  syncContractPreview();
+});
+discountValue?.addEventListener("input", () => {
   updateTotals();
   syncContractPreview();
 });

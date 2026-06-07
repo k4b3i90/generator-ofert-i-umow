@@ -430,6 +430,12 @@ textarea {
   gap: 10px;
 }
 
+.totals-controls {
+  display: grid;
+  gap: 10px;
+  min-width: min(100%, 280px);
+}
+
 .summary-list div {
   display: flex;
   justify-content: space-between;
@@ -439,6 +445,10 @@ textarea {
 
 .summary-list strong {
   color: var(--text);
+}
+
+#discountSummaryRow strong {
+  color: #8f4c1f;
 }
 
 .grand-total {
