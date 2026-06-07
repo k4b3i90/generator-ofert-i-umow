@@ -347,6 +347,10 @@ textarea {
   background: rgba(255, 255, 255, 0.66);
 }
 
+.items-table tbody tr.item-category-row {
+  background: rgba(218, 188, 150, 0.22);
+}
+
 .items-table tbody td:first-child {
   border-top-left-radius: 14px;
   border-bottom-left-radius: 14px;
@@ -362,6 +366,12 @@ textarea {
   min-width: 110px;
 }
 
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .item-name {
   min-height: 42px;
   resize: none;
@@ -369,6 +379,22 @@ textarea {
   line-height: 1.35;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.item-category-row .item-name {
+  font-weight: 700;
+}
+
+.item-category-row .item-unit,
+.item-category-row .item-quantity,
+.item-category-row .item-price {
+  background: rgba(255, 255, 255, 0.48);
+  color: var(--muted);
+}
+
+.item-category-row .item-total {
+  font-weight: 700;
+  color: var(--text);
 }
 
 .icon-button {

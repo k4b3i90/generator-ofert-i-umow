@@ -9,6 +9,7 @@ const toast = document.getElementById("toast");
 const itemsBody = document.getElementById("itemsBody");
 const itemRowTemplate = document.getElementById("itemRowTemplate");
 const addItemButton = document.getElementById("addItemButton");
+const addCategoryButton = document.getElementById("addCategoryButton");
 const netTotal = document.getElementById("netTotal");
 const vatValue = document.getElementById("vatValue");
 const grossTotal = document.getElementById("grossTotal");
@@ -152,6 +153,8 @@ const applyBootstrapData = (payload) => {
   renderBoardNotes();
 };
 
+const CATEGORY_UNIT = "__category__";
+
 const refreshOfferNumberPreview = async () => {
   if (state.editingOfferId) {
     return;
@@ -182,20 +185,65 @@ const toggleClientFields = () => {
 
 const collectItems = () => {
   return [...itemsBody.querySelectorAll("tr")].map((row) => {
+    const type = row.dataset.itemType || "item";
     const name = row.querySelector(".item-name").value.trim();
-    const unit = row.querySelector(".item-unit").value;
-    const quantity = Number(row.querySelector(".item-quantity").value) || 0;
-    const price = Number(row.querySelector(".item-price").value) || 0;
-    return { name, unit, quantity, price, total: quantity * price };
+    const unit = type === "category" ? CATEGORY_UNIT : row.querySelector(".item-unit").value;
+    const quantity = type === "category" ? 0 : Number(row.querySelector(".item-quantity").value) || 0;
+    const price = type === "category" ? 0 : Number(row.querySelector(".item-price").value) || 0;
+    return { type, name, unit, quantity, price, total: quantity * price };
+  });
+};
+
+const getChargeableItems = (items = collectItems()) => items.filter((item) => item.type !== "category" && item.name);
+
+const getCategoryTotals = (items = collectItems()) => {
+  const totals = new Map();
+  let currentCategoryIndex = null;
+  let currentTotal = 0;
+
+  items.forEach((item, index) => {
+    if (item.type === "category") {
+      if (currentCategoryIndex !== null) {
+        totals.set(currentCategoryIndex, currentTotal);
+      }
+      currentCategoryIndex = index;
+      currentTotal = 0;
+      return;
+    }
+
+    if (currentCategoryIndex !== null && item.name) {
+      currentTotal += item.total;
+    }
+  });
+
+  if (currentCategoryIndex !== null) {
+    totals.set(currentCategoryIndex, currentTotal);
+  }
+
+  return totals;
+};
+
+const syncCategoryRowTotals = (items = collectItems()) => {
+  const categoryTotals = getCategoryTotals(items);
+  [...itemsBody.querySelectorAll("tr")].forEach((row, index) => {
+    if ((row.dataset.itemType || "item") !== "category") {
+      return;
+    }
+
+    const totalLabel = row.querySelector(".item-total");
+    totalLabel.textContent = currency.format(categoryTotals.get(index) || 0);
   });
 };
 
 const updateTotals = () => {
-  const subtotal = collectItems().reduce((sum, item) => sum + item.total, 0);
+  const items = collectItems();
+  const subtotal = getChargeableItems(items).reduce((sum, item) => sum + item.total, 0);
   const selectedVat = vatRate.value;
   const vatMultiplier = selectedVat === "none" ? 0 : Number(selectedVat) / 100;
   const vatAmount = subtotal * vatMultiplier;
   const total = subtotal + vatAmount;
+
+  syncCategoryRowTotals(items);
 
   netTotal.textContent = currency.format(subtotal);
   vatValue.textContent = currency.format(vatAmount);
@@ -295,7 +343,7 @@ const getClientDetails = () => {
 };
 
 const syncContractPreview = () => {
-  const items = collectItems().filter((item) => item.name);
+  const items = getChargeableItems();
   const totals = getTotalsSnapshot();
   const isCompany = getClientType() === "company";
   contractClient.textContent = getClientLabel();
@@ -319,11 +367,19 @@ const createItemRow = (prefill = {}) => {
   const quantityInput = row.querySelector(".item-quantity");
   const priceInput = row.querySelector(".item-price");
   const totalLabel = row.querySelector(".item-total");
+  const type = prefill.type || (prefill.unit === CATEGORY_UNIT ? "category" : "item");
+
+  row.dataset.itemType = type;
+  row.classList.toggle("item-category-row", type === "category");
 
   nameInput.value = prefill.name || "";
-  unitInput.value = prefill.unit || "m2";
-  quantityInput.value = prefill.quantity ?? 1;
-  priceInput.value = prefill.price ?? 0;
+  unitInput.value = type === "category" ? "m2" : prefill.unit || "m2";
+  quantityInput.value = type === "category" ? "" : prefill.quantity ?? 1;
+  priceInput.value = type === "category" ? "" : prefill.price ?? 0;
+  nameInput.placeholder = type === "category" ? "Np. Instalacja gazowa" : "Np. malowanie";
+  unitInput.disabled = type === "category";
+  quantityInput.disabled = type === "category";
+  priceInput.disabled = type === "category";
 
   const resizeNameInput = () => {
     nameInput.style.height = "auto";
@@ -331,6 +387,11 @@ const createItemRow = (prefill = {}) => {
   };
 
   const recalc = () => {
+    if (type === "category") {
+      updateTotals();
+      syncContractPreview();
+      return;
+    }
     const quantity = Number(quantityInput.value) || 0;
     const price = Number(priceInput.value) || 0;
     totalLabel.textContent = currency.format(quantity * price);
@@ -348,6 +409,7 @@ const createItemRow = (prefill = {}) => {
   priceInput.addEventListener("input", recalc);
   nameInput.addEventListener("input", () => {
     resizeNameInput();
+    updateTotals();
     syncContractPreview();
   });
 
@@ -435,16 +497,20 @@ const updatePaymentSettingsVisibility = () => {
 };
 
 const getScopeHtml = (items) => {
-  if (!items.length) {
+  const namedItems = items.filter((item) => item.name);
+
+  if (!namedItems.length) {
     return "<li>Zakres prac zostanie uzupełniony po dodaniu pozycji oferty.</li>";
   }
 
-  return items
+  return namedItems
     .map(
       (item) =>
-        `<li>${escapeHtml(item.name)} - ${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} po ${currency.format(
-          item.price
-        )}, wartość: ${currency.format(item.total)}</li>`
+        item.type === "category"
+          ? `<li><strong>${escapeHtml(item.name)}</strong></li>`
+          : `<li>${escapeHtml(item.name)} - ${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} po ${currency.format(
+              item.price
+            )}, wartość: ${currency.format(item.total)}</li>`
     )
     .join("");
 };
@@ -633,6 +699,7 @@ const buildContractHtml = (offer) => {
 const buildOfferPdfHtml = (offer) => {
   const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
   const vatLabel = offer.vatRate === "none" ? "Bez faktury / bez VAT" : `${offer.vatRate}%`;
+  const categoryTotals = getCategoryTotals(offer.items || []);
   const clientBlock =
     offer.clientType === "company"
       ? `
@@ -652,7 +719,19 @@ const buildOfferPdfHtml = (offer) => {
 
   const itemsRows = offer.items
     .map(
-      (item) => `
+      (item, index) =>
+        item.type === "category"
+          ? `
+        <tr>
+          <td colspan="4" style="border:1px solid #d7d1c8; padding:7px 8px; text-align:left; background:#efe5d7; font-weight:700;">${escapeHtml(
+            item.name
+          )}</td>
+          <td style="border:1px solid #d7d1c8; padding:7px 8px; text-align:left; background:#efe5d7; font-weight:700;">${currency.format(
+            categoryTotals.get(index) || 0
+          )}</td>
+        </tr>
+      `
+          : `
         <tr>
           <td>${escapeHtml(item.name)}</td>
           <td>${escapeHtml(item.unit)}</td>
@@ -1494,8 +1573,10 @@ const prefillDemoData = () => {
   toggleClientFields();
 
   itemsBody.innerHTML = "";
+  createItemRow({ type: "category", name: "Prace wykończeniowe" });
   createItemRow({ name: "Malowanie ścian", unit: "m2", quantity: 180, price: 24 });
   createItemRow({ name: "Gładź szpachlowa", unit: "m2", quantity: 180, price: 31 });
+  createItemRow({ type: "category", name: "Elementy wykończeniowe" });
   createItemRow({ name: "Montaż listew przypodłogowych", unit: "mb", quantity: 56, price: 18 });
   document.getElementById("offerNotes").value =
     "Termin realizacji do ustalenia po akceptacji oferty. Materiały po stronie inwestora.";
@@ -1510,6 +1591,7 @@ const prefillDemoData = () => {
 
 const saveOffer = async () => {
   const items = collectItems().filter((item) => item.name);
+  const chargeableItems = getChargeableItems(items);
   const totals = getTotalsSnapshot();
   const totalLabel = totals.grossLabel;
   const documentLabels = getDocumentLabels();
@@ -1519,7 +1601,7 @@ const saveOffer = async () => {
     return;
   }
 
-  if (!items.length) {
+  if (!chargeableItems.length) {
     showToast("Dodaj przynajmniej jedną pozycję dokumentu.");
     return;
   }
@@ -1542,19 +1624,19 @@ const saveOffer = async () => {
     vatLabel: totals.vatLabel,
     grossLabel: totals.grossLabel,
     vatRate: vatRate.value,
-    warranty: warrantyPeriod.value,
-    contractTerms: getContractTerms(),
-    totals: {
-      net: collectItems().reduce((sum, item) => sum + item.total, 0),
+      warranty: warrantyPeriod.value,
+      contractTerms: getContractTerms(),
+      totals: {
+      net: chargeableItems.reduce((sum, item) => sum + item.total, 0),
       vat:
         (vatRate.value === "none" ? 0 : Number(vatRate.value) / 100) *
-        collectItems().reduce((sum, item) => sum + item.total, 0),
+        chargeableItems.reduce((sum, item) => sum + item.total, 0),
       gross:
-        collectItems().reduce((sum, item) => sum + item.total, 0) +
+        chargeableItems.reduce((sum, item) => sum + item.total, 0) +
         (vatRate.value === "none" ? 0 : Number(vatRate.value) / 100) *
-          collectItems().reduce((sum, item) => sum + item.total, 0),
-    },
-  };
+          chargeableItems.reduce((sum, item) => sum + item.total, 0),
+      },
+    };
 
   try {
     const payload = await apiRequest("/api/offers", {
@@ -1619,6 +1701,7 @@ logoutButton?.addEventListener("click", async () => {
 });
 
 addItemButton?.addEventListener("click", () => createItemRow());
+addCategoryButton?.addEventListener("click", () => createItemRow({ type: "category" }));
 addBoardNoteButton?.addEventListener("click", addBoardNote);
 boardNoteInput?.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {

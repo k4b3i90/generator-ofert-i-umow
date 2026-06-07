@@ -173,10 +173,11 @@ const mapOfferItems = (rows) =>
   rows.map((row) => ({
     id: row.id,
     name: row.item_name,
-    unit: row.unit,
-    quantity: Number(row.quantity),
-    price: Number(row.unit_price),
-    total: Number(row.line_total),
+    type: row.unit === "__category__" ? "category" : "item",
+    unit: row.unit === "__category__" ? "" : row.unit,
+    quantity: row.unit === "__category__" ? 0 : Number(row.quantity),
+    price: row.unit === "__category__" ? 0 : Number(row.unit_price),
+    total: row.unit === "__category__" ? 0 : Number(row.line_total),
   }));
 
 const mapOfferRow = (row, items) => ({
@@ -496,7 +497,15 @@ app.post("/api/offers", requireAuth, asyncHandler(async (req, res) => {
           )
           values ($1,$2,$3,$4,$5,$6,$7)
         `,
-        [offerId, index, item.name, item.unit, Number(item.quantity || 0), Number(item.price || 0), Number(item.total || 0)]
+        [
+          offerId,
+          index,
+          item.name,
+          item.type === "category" ? "__category__" : item.unit,
+          Number(item.type === "category" ? 0 : item.quantity || 0),
+          Number(item.type === "category" ? 0 : item.price || 0),
+          Number(item.type === "category" ? 0 : item.total || 0),
+        ]
       );
     }
 
