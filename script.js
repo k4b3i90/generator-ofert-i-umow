@@ -247,6 +247,7 @@ const calculateDocumentTotals = ({
 
   return {
     baseNet: subtotal,
+    baseNetLabel: currency.format(subtotal),
     discountType: normalizedDiscountType,
     discountValue: normalizedDiscountValue,
     discountAmount,
@@ -320,7 +321,7 @@ const updateTotals = () => {
   syncCategoryRowTotals(items);
   updateDiscountVisibility();
 
-  netTotal.textContent = totals.netLabel;
+  netTotal.textContent = totals.hasDiscount ? totals.baseNetLabel : totals.netLabel;
   vatValue.textContent = totals.vatLabel;
   grossTotal.textContent = totals.grossLabel;
 
@@ -945,7 +946,7 @@ const buildOfferPdfTotalsHtml = (offer) => {
     <div style="margin-top:16px; width:280px; margin-left:auto; font-size:10.5px;">
       <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Stawka VAT</span><span>${escapeHtml(vatLabel)}</span></div>
       ${discountSummaryHtml}
-      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Netto</span><span>${escapeHtml(totals.netLabel || offer.netLabel || "-")}</span></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Netto</span><span>${escapeHtml(totals.hasDiscount ? totals.baseNetLabel : totals.netLabel || offer.netLabel || "-")}</span></div>
       <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>VAT</span><span>${escapeHtml(totals.vatLabel || offer.vatLabel || "-")}</span></div>
       <div style="display:flex; justify-content:space-between; padding:6px 0; font-weight:700;"><span>Razem</span><span>${escapeHtml(totals.grossLabel || offer.grossLabel || offer.totalLabel)}</span></div>
     </div>
