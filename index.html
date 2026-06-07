@@ -575,7 +575,14 @@
         <td><input type="number" class="item-quantity" min="0" step="0.01" value="1" /></td>
         <td><input type="number" class="item-price" min="0" step="0.01" value="0" /></td>
         <td><strong class="item-total">0,00 zł</strong></td>
-        <td><button type="button" class="icon-button remove-item">Usuń</button></td>
+        <td>
+          <div class="item-row-actions">
+            <button type="button" class="icon-button move-item-up" title="Przesuń w górę">↑</button>
+            <button type="button" class="icon-button move-item-down" title="Przesuń w dół">↓</button>
+            <button type="button" class="icon-button insert-item-below" title="Dodaj pozycję pod spodem">＋</button>
+            <button type="button" class="icon-button remove-item">Usuń</button>
+          </div>
+        </td>
       </tr>
     </template>
 

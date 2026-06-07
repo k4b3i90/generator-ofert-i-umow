@@ -404,6 +404,27 @@ textarea {
   font-weight: 700;
 }
 
+.item-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.item-row-actions .icon-button {
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--text);
+}
+
+.item-row-actions .remove-item {
+  color: #8a3d3d;
+}
+
 .summary-list {
   display: grid;
   gap: 10px;

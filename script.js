@@ -359,6 +359,22 @@ const syncContractPreview = () => {
   renderContractPreview();
 };
 
+const moveItemRow = (row, direction) => {
+  const targetRow = direction === "up" ? row.previousElementSibling : row.nextElementSibling;
+  if (!targetRow) {
+    return;
+  }
+
+  if (direction === "up") {
+    itemsBody.insertBefore(row, targetRow);
+  } else {
+    itemsBody.insertBefore(targetRow, row);
+  }
+
+  updateTotals();
+  syncContractPreview();
+};
+
 const createItemRow = (prefill = {}) => {
   const fragment = itemRowTemplate.content.cloneNode(true);
   const row = fragment.querySelector("tr");
@@ -367,6 +383,9 @@ const createItemRow = (prefill = {}) => {
   const quantityInput = row.querySelector(".item-quantity");
   const priceInput = row.querySelector(".item-price");
   const totalLabel = row.querySelector(".item-total");
+  const moveUpButton = row.querySelector(".move-item-up");
+  const moveDownButton = row.querySelector(".move-item-down");
+  const insertBelowButton = row.querySelector(".insert-item-below");
   const type = prefill.type || (prefill.unit === CATEGORY_UNIT ? "category" : "item");
 
   row.dataset.itemType = type;
@@ -404,6 +423,15 @@ const createItemRow = (prefill = {}) => {
     updateTotals();
     syncContractPreview();
   });
+  moveUpButton.addEventListener("click", () => moveItemRow(row, "up"));
+  moveDownButton.addEventListener("click", () => moveItemRow(row, "down"));
+  insertBelowButton.addEventListener("click", () => {
+    const newRow = createItemRow();
+    itemsBody.insertBefore(newRow, row.nextElementSibling);
+    updateTotals();
+    syncContractPreview();
+    newRow.querySelector(".item-name")?.focus();
+  });
 
   quantityInput.addEventListener("input", recalc);
   priceInput.addEventListener("input", recalc);
@@ -416,6 +444,7 @@ const createItemRow = (prefill = {}) => {
   itemsBody.appendChild(row);
   resizeNameInput();
   recalc();
+  return row;
 };
 
 const openTab = (tabName) => {
@@ -783,6 +812,225 @@ const buildOfferPdfHtml = (offer) => {
       </section>
     </div>
   `;
+};
+
+const buildOfferPdfRows = (offer) => {
+  const categoryTotals = getCategoryTotals(offer.items || []);
+
+  return (offer.items || []).map((item, index) =>
+    item.type === "category"
+      ? `
+        <tr>
+          <td colspan="4" style="border:1px solid #d7d1c8; padding:7px 8px; text-align:left; background:#efe5d7; font-weight:700;">${escapeHtml(
+            item.name
+          )}</td>
+          <td style="border:1px solid #d7d1c8; padding:7px 8px; text-align:left; background:#efe5d7; font-weight:700;">${currency.format(
+            categoryTotals.get(index) || 0
+          )}</td>
+        </tr>
+      `
+      : `
+        <tr>
+          <td style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left;">${escapeHtml(item.name)}</td>
+          <td style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left;">${escapeHtml(item.unit)}</td>
+          <td style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left;">${escapeHtml(item.quantity)}</td>
+          <td style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left;">${currency.format(item.price)}</td>
+          <td style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left;">${currency.format(item.total)}</td>
+        </tr>
+      `
+  );
+};
+
+const buildOfferPdfHeaderHtml = (offer, continuation = false) => {
+  const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
+  const clientBlock =
+    offer.clientType === "company"
+      ? `
+        <div><strong>Firma:</strong> ${escapeHtml(offer.clientDetails.companyName || "")}</div>
+        <div><strong>NIP:</strong> ${escapeHtml(offer.clientDetails.taxId || "-")}</div>
+        <div><strong>Kontakt:</strong> ${escapeHtml(offer.clientDetails.contact || "-")}</div>
+        <div><strong>Telefon:</strong> ${escapeHtml(offer.clientDetails.phone || "-")}</div>
+        <div><strong>E-mail:</strong> ${escapeHtml(offer.clientDetails.email || "-")}</div>
+        <div><strong>Adres:</strong> ${escapeHtml(offer.clientDetails.address || "-")}</div>
+      `
+      : `
+        <div><strong>Klient:</strong> ${escapeHtml(offer.clientDetails.name || "")}</div>
+        <div><strong>Telefon:</strong> ${escapeHtml(offer.clientDetails.phone || "-")}</div>
+        <div><strong>E-mail:</strong> ${escapeHtml(offer.clientDetails.email || "-")}</div>
+        <div><strong>Adres:</strong> ${escapeHtml(offer.clientDetails.address || "-")}</div>
+      `;
+
+  if (continuation) {
+    return `
+      <div style="display:grid; gap:4px; justify-items:center; margin: 8px 0 14px;">
+        <h1 style="margin:0; font-size:18px; text-align:center;">${documentLabels.header} - ciąg dalszy</h1>
+        <div style="font-size:10.5px; color:#6c6257;">${escapeHtml(offer.number)}</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div style="display:grid; gap:4px; justify-items:center; margin: 8px 0 16px;">
+      <h1 style="margin:0; font-size:20px; text-align:center;">${documentLabels.header}</h1>
+      <h2 style="margin:0; font-size:13px; text-align:center; font-weight:600;">${escapeHtml(offer.title || documentLabels.singularCapital)}</h2>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div><strong>${documentLabels.numberLabel}:</strong> ${escapeHtml(offer.number)}</div>
+      <div><strong>${documentLabels.dateLabel}:</strong> ${escapeHtml(offer.date)}</div>
+      <div><strong>${documentLabels.validUntilLabel}:</strong> ${escapeHtml(offer.validUntil || "-")}</div>
+      <div><strong>Autor:</strong> ${escapeHtml(offer.author)}</div>
+    </div>
+    <section style="margin-top:12px;">
+      <h3 style="margin:0 0 8px; font-size:13px;">Dane klienta</h3>
+      ${clientBlock}
+    </section>
+  `;
+};
+
+const buildOfferPdfTableHtml = (rowsHtml) => `
+  <table style="width:100%; border-collapse:collapse; margin-top:16px; font-size:10.5px;">
+    <thead>
+      <tr>
+        <th style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left; background:#f3ede5;">Usługa</th>
+        <th style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left; background:#f3ede5;">Jednostka</th>
+        <th style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left; background:#f3ede5;">Ilość</th>
+        <th style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left; background:#f3ede5;">Cena</th>
+        <th style="border:1px solid #d7d1c8; padding:6px 7px; text-align:left; background:#f3ede5;">Suma</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+`;
+
+const buildOfferPdfTrailingHtml = (offer) => {
+  const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
+  const vatLabel = offer.vatRate === "none" ? "Bez faktury / bez VAT" : `${offer.vatRate}%`;
+
+  return `
+    <div style="margin-top:16px; width:280px; margin-left:auto; font-size:10.5px;">
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Stawka VAT</span><span>${escapeHtml(vatLabel)}</span></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Netto</span><span>${escapeHtml(offer.netLabel || "-")}</span></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>VAT</span><span>${escapeHtml(offer.vatLabel || "-")}</span></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; font-weight:700;"><span>Razem</span><span>${escapeHtml(offer.grossLabel || offer.totalLabel)}</span></div>
+    </div>
+    <section style="padding-top:12px;">
+      <h3 style="margin:0 0 8px; font-size:13px;">Uwagi</h3>
+      <div style="white-space:pre-wrap;">${formatMultilineHtml(offer.notes)}</div>
+    </section>
+  `;
+};
+
+const buildOfferPageDocumentHtml = (contentHtml) => `
+  <div style="font-family: Arial, sans-serif; color:#1f1a17; background:#ffffff; font-size:11px; line-height:1.35; padding:0;">
+    ${contentHtml}
+  </div>
+`;
+
+const paginateOfferContent = (offer) => {
+  const rows = buildOfferPdfRows(offer);
+  const trailingHtml = buildOfferPdfTrailingHtml(offer);
+  const measureHost = document.createElement("div");
+  measureHost.style.position = "fixed";
+  measureHost.style.left = "-10000px";
+  measureHost.style.top = "0";
+  measureHost.style.width = "794px";
+  measureHost.style.padding = "34px 42px";
+  measureHost.style.boxSizing = "border-box";
+  measureHost.style.background = "#ffffff";
+  document.body.appendChild(measureHost);
+
+  const metrics = getPdfPageMetrics();
+  const maxContentHeightPx = Math.floor((794 * metrics.printableHeight) / metrics.printableWidth);
+  const pages = [];
+
+  const measurePageHeight = (html) => {
+    measureHost.innerHTML = buildOfferPageDocumentHtml(html);
+    return measureHost.firstElementChild?.scrollHeight || 0;
+  };
+
+  const buildPageHtml = (pageRows, continuation = false, extraHtml = "") =>
+    `${buildOfferPdfHeaderHtml(offer, continuation)}${buildOfferPdfTableHtml(pageRows.join(""))}${extraHtml}`;
+
+  let currentRows = [];
+  let isContinuation = false;
+
+  rows.forEach((rowHtml) => {
+    const candidateRows = [...currentRows, rowHtml];
+    const candidateHtml = buildPageHtml(candidateRows, isContinuation);
+    if (measurePageHeight(candidateHtml) > maxContentHeightPx && currentRows.length) {
+      pages.push(buildOfferPageDocumentHtml(buildPageHtml(currentRows, isContinuation)));
+      currentRows = [rowHtml];
+      isContinuation = true;
+    } else {
+      currentRows = candidateRows;
+    }
+  });
+
+  if (!currentRows.length) {
+    currentRows = [];
+  }
+
+  const finalCandidateHtml = buildPageHtml(currentRows, isContinuation, trailingHtml);
+  if (measurePageHeight(finalCandidateHtml) <= maxContentHeightPx) {
+    pages.push(buildOfferPageDocumentHtml(finalCandidateHtml));
+  } else {
+    if (currentRows.length) {
+      pages.push(buildOfferPageDocumentHtml(buildPageHtml(currentRows, isContinuation)));
+    }
+    pages.push(buildOfferPageDocumentHtml(`${buildOfferPdfHeaderHtml(offer, true)}${trailingHtml}`));
+  }
+
+  measureHost.remove();
+  return pages;
+};
+
+const exportOfferPagesPdf = async ({ offer, filename }) => {
+  const doc = createPdf();
+  if (!doc) {
+    return;
+  }
+
+  await preloadLogoForPdf();
+  const pagesHtml = paginateOfferContent(offer);
+  const metrics = getPdfPageMetrics();
+
+  for (let index = 0; index < pagesHtml.length; index += 1) {
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-10000px";
+    container.style.top = "0";
+    container.style.width = "794px";
+    container.style.padding = "34px 42px";
+    container.style.boxSizing = "border-box";
+    container.style.background = "#ffffff";
+    container.innerHTML = pagesHtml[index];
+    document.body.appendChild(container);
+
+    try {
+      const canvas = await window.html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: 794,
+        width: 794,
+        scrollX: 0,
+        scrollY: 0,
+      });
+
+      if (index > 0) {
+        doc.addPage();
+      }
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+      const pageImageHeightMm = (canvas.height * metrics.printableWidth) / canvas.width;
+      doc.addImage(imgData, "JPEG", metrics.pageMarginX, metrics.contentTop, metrics.printableWidth, pageImageHeightMm);
+    } finally {
+      container.remove();
+    }
+  }
+
+  doc.save(filename);
 };
 
 const buildContractPdfHtml = (offer) => {
@@ -1159,8 +1407,8 @@ const downloadOfferPdf = (offerId) => {
     return;
   }
   (async () => {
-    await exportHtmlAsPdf({
-      html: buildOfferPdfHtml(offer),
+    await exportOfferPagesPdf({
+      offer,
       filename: `${offer.number}-${documentLabels.filenameSuffix}.pdf`,
     });
   })().catch(() => {
