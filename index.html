@@ -220,6 +220,10 @@
                     Wartość zniżki
                     <input type="number" id="discountValue" min="0" step="0.01" value="0" placeholder="Np. 10 albo 500" />
                   </label>
+                  <label>
+                    Wpłacone środki
+                    <input type="number" id="receivedAmount" min="0" step="0.01" value="0" placeholder="Np. 2000" />
+                  </label>
 
                   </div>
                   <div class="summary-list">
@@ -235,8 +239,12 @@
                       <span>VAT</span>
                       <strong id="vatValue">0,00 zł</strong>
                     </div>
+                    <div id="receivedSummaryRow" hidden>
+                      <span>Wpłacono</span>
+                      <strong id="receivedTotalValue">0,00 zł</strong>
+                    </div>
                     <div class="grand-total">
-                      <span>Razem</span>
+                      <span id="grossTotalLabel">Razem</span>
                       <strong id="grossTotal">0,00 zł</strong>
                     </div>
                   </div>

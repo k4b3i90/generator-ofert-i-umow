@@ -194,7 +194,9 @@ const mapOfferRow = (row, items) => ({
   validUntil: row.valid_until || "",
   notes: row.notes || "",
   items,
-  totalLabel: new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(Number(row.totals_gross)),
+  totalLabel: new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(
+    Math.max(0, Number(row.totals_gross) - Math.min(Number(row.totals_gross), Math.max(0, Number(row.contract_terms?.receivedAmount) || 0)))
+  ),
   netLabel: new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(Number(row.totals_net)),
   vatLabel: new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(Number(row.totals_vat)),
   grossLabel: new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(Number(row.totals_gross)),
