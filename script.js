@@ -926,8 +926,34 @@ const buildOfferPageDocumentHtml = (contentHtml) => `
   </div>
 `;
 
-const paginateOfferContent = (offer) => {
+const buildOfferPdfRowBlocks = (offer) => {
+  const items = offer.items || [];
   const rows = buildOfferPdfRows(offer);
+  const blocks = [];
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const item = items[index];
+    if (item?.type === "category") {
+      let blockHtml = rows[index];
+      const nextItem = items[index + 1];
+
+      if (nextItem && nextItem.type !== "category") {
+        blockHtml += rows[index + 1];
+        index += 1;
+      }
+
+      blocks.push(blockHtml);
+      continue;
+    }
+
+    blocks.push(rows[index]);
+  }
+
+  return blocks;
+};
+
+const paginateOfferContent = (offer) => {
+  const rowBlocks = buildOfferPdfRowBlocks(offer);
   const trailingHtml = buildOfferPdfTrailingHtml(offer);
   const measureHost = document.createElement("div");
   measureHost.style.position = "fixed";
@@ -954,12 +980,12 @@ const paginateOfferContent = (offer) => {
   let currentRows = [];
   let isContinuation = false;
 
-  rows.forEach((rowHtml) => {
-    const candidateRows = [...currentRows, rowHtml];
+  rowBlocks.forEach((rowBlockHtml) => {
+    const candidateRows = [...currentRows, rowBlockHtml];
     const candidateHtml = buildPageHtml(candidateRows, isContinuation);
     if (measurePageHeight(candidateHtml) > maxContentHeightPx && currentRows.length) {
       pages.push(buildOfferPageDocumentHtml(buildPageHtml(currentRows, isContinuation)));
-      currentRows = [rowHtml];
+      currentRows = [rowBlockHtml];
       isContinuation = true;
     } else {
       currentRows = candidateRows;
@@ -1383,10 +1409,11 @@ const exportContractPagesPdf = async ({ offer, filename }) => {
 
 const renderContractPreview = () => {
   const totals = getTotalsSnapshot();
+  const items = collectItems().filter((item) => item.name);
   const offer = {
     number: offerNumber.textContent,
     date: offerDate.textContent,
-    items: collectItems().filter((item) => item.name),
+    items,
     totalLabel: totals.grossLabel,
     netLabel: totals.netLabel,
     vatLabel: totals.vatLabel,
