@@ -204,7 +204,9 @@ const collectItems = () => {
   });
 };
 
-const getChargeableItems = (items = collectItems()) => items.filter((item) => item.type !== "category" && item.name);
+const isChargeableItem = (item) => item.type !== "category" && (item.name || item.quantity > 0 || item.price > 0);
+
+const getChargeableItems = (items = collectItems()) => items.filter(isChargeableItem);
 
 const getDiscountSettings = (source = null) => {
   if (source) {
@@ -456,7 +458,7 @@ const getClientDetails = () => {
 };
 
 const syncContractPreview = () => {
-  const items = getChargeableItems();
+  const items = getChargeableItems().filter((item) => item.name);
   const totals = getTotalsSnapshot();
   const isCompany = getClientType() === "company";
   contractClient.textContent = getClientLabel();
