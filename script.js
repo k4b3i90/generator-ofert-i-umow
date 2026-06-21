@@ -25,6 +25,7 @@ const receivedSummaryRow = document.getElementById("receivedSummaryRow");
 const receivedTotalValue = document.getElementById("receivedTotalValue");
 const grossTotalLabel = document.getElementById("grossTotalLabel");
 const saveOfferButton = document.getElementById("saveOfferButton");
+const saveContractButton = document.getElementById("saveContractButton");
 const offerGeneratorEyebrow = document.getElementById("offerGeneratorEyebrow");
 const offerPanelTitle = document.getElementById("offerPanelTitle");
 const offerTitleLabel = document.getElementById("offerTitleLabel");
@@ -453,6 +454,9 @@ const updateDocumentKindUi = () => {
   itemsSectionTitle.textContent = labels.itemsTitle;
   offerNumberBadgeLabel.textContent = labels.numberLabel;
   saveOfferButton.textContent = state.editingOfferId ? `Zapisz zmiany w ${labels.singular}` : labels.saveLabel;
+  if (saveContractButton) {
+    saveContractButton.textContent = state.editingOfferId ? "Zapisz zmiany w umowie" : "Zapisz ofertę i umowę";
+  }
 };
 
 const isReceiptDocument = (offer = {}) => getOfferDocumentKind(offer) === "receipt";
@@ -2311,6 +2315,7 @@ paymentMode?.addEventListener("change", updatePaymentSettingsVisibility);
 paymentHasAdvance?.addEventListener("change", updatePaymentSettingsVisibility);
 prefillButton?.addEventListener("click", prefillDemoData);
 saveOfferButton?.addEventListener("click", saveOffer);
+saveContractButton?.addEventListener("click", saveOffer);
 
 document.querySelectorAll('input[name="clientType"]').forEach((radio) => {
   radio.addEventListener("change", () => {
