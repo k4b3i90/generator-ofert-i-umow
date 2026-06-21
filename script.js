@@ -144,6 +144,16 @@ const relocatePreliminarySettingsSection = () => {
   contractDraftSection.before(section);
 };
 
+const openPreliminaryContractEditor = (offerId) => {
+  editOffer(offerId, "contracts");
+
+  window.requestAnimationFrame(() => {
+    const section = preliminaryPenaltyValue?.closest(".section-box");
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+    preliminaryTerms?.focus();
+  });
+};
+
 const apiRequest = async (url, options = {}) => {
   const response = await fetch(url, {
     credentials: "include",
@@ -2013,6 +2023,7 @@ const renderSavedContracts = () => {
           </div>
           <div class="saved-actions">
             <button type="button" class="button button-secondary edit-contract" data-offer-id="${contract.offerId}">Edytuj z oferty</button>
+            <button type="button" class="button button-secondary edit-preliminary-contract" data-offer-id="${contract.offerId}">Edytuj umowę wstępną</button>
             <button type="button" class="button button-secondary download-contract-pdf" data-offer-id="${contract.offerId}">Pobierz PDF</button>
             <button type="button" class="button button-secondary download-preliminary-contract-pdf" data-offer-id="${contract.offerId}">Umowa wstępna</button>
             <button type="button" class="button button-secondary delete-contract" data-offer-id="${contract.offerId}">X</button>
@@ -2024,6 +2035,9 @@ const renderSavedContracts = () => {
 
   savedContractsList.querySelectorAll(".edit-contract").forEach((button) => {
     button.addEventListener("click", () => editOffer(button.dataset.offerId, "contracts"));
+  });
+  savedContractsList.querySelectorAll(".edit-preliminary-contract").forEach((button) => {
+    button.addEventListener("click", () => openPreliminaryContractEditor(button.dataset.offerId));
   });
   savedContractsList.querySelectorAll(".download-contract-pdf").forEach((button) => {
     button.addEventListener("click", () => downloadContractPdf(button.dataset.offerId));
