@@ -72,7 +72,12 @@ const breachPenaltyValue = document.getElementById("breachPenaltyValue");
 const breachPenaltyUnit = document.getElementById("breachPenaltyUnit");
 const breachPenaltyTiming = document.getElementById("breachPenaltyTiming");
 const breachCureDays = document.getElementById("breachCureDays");
+const preliminaryPenaltyValue = document.getElementById("preliminaryPenaltyValue");
+const preliminaryPenaltyUnit = document.getElementById("preliminaryPenaltyUnit");
+const preliminaryPenaltyPaymentDays = document.getElementById("preliminaryPenaltyPaymentDays");
+const preliminaryTerms = document.getElementById("preliminaryTerms");
 const contractPreview = document.getElementById("contractPreview");
+const contractDraftSection = document.querySelector(".contract-draft");
 
 const demoUsers = [
   { login: "Piotr Kowalczyk", password: "Kowalczyk", name: "Piotr Kowalczyk" },
@@ -126,6 +131,19 @@ const showToast = (message) => {
   }, 2600);
 };
 
+const relocatePreliminarySettingsSection = () => {
+  const section = preliminaryPenaltyValue?.closest(".section-box");
+  if (!section || !contractDraftSection) {
+    return;
+  }
+
+  if (section.nextElementSibling === contractDraftSection) {
+    return;
+  }
+
+  contractDraftSection.before(section);
+};
+
 const apiRequest = async (url, options = {}) => {
   const response = await fetch(url, {
     credentials: "include",
@@ -151,6 +169,8 @@ const apiRequest = async (url, options = {}) => {
 
   return data;
 };
+
+relocatePreliminarySettingsSection();
 
 const applyBootstrapData = (payload) => {
   state.savedOffers = payload.offers || [];
@@ -626,6 +646,10 @@ const getContractTerms = () => {
     breachPenaltyUnit: breachPenaltyUnit.value,
     breachPenaltyTiming: breachPenaltyTiming.value.trim(),
     breachCureDays: breachCureDays.value || "3",
+    preliminaryPenaltyValue: preliminaryPenaltyValue.value || "5000",
+    preliminaryPenaltyUnit: preliminaryPenaltyUnit.value || "zł",
+    preliminaryPenaltyPaymentDays: preliminaryPenaltyPaymentDays.value || "7",
+    preliminaryTerms: preliminaryTerms.value.trim(),
   };
 };
 
@@ -927,6 +951,68 @@ const buildOfferPdfHtml = (offer) => {
   `;
 };
 
+const buildPreliminaryContractHtml = (offer) => {
+  const terms = offer.contractTerms || {};
+  const isCompany = offer.clientDetails.type === "company";
+  const preliminaryPenaltyLabel = getPaymentAmountLabel(terms.preliminaryPenaltyValue, terms.preliminaryPenaltyUnit);
+  const penaltyPaymentDays = String(terms.preliminaryPenaltyPaymentDays || "7");
+  const additionalTermsHtml = terms.preliminaryTerms
+    ? `<p>5. Dodatkowe ustalenia Stron: <strong>${escapeHtml(terms.preliminaryTerms)}</strong>.</p>`
+    : "";
+  const remunerationHtml = isCompany
+    ? `<p>4. Strony przyjmują, że orientacyjna wartość planowanej realizacji według oferty nr <strong>${escapeHtml(
+        offer.number
+      )}</strong> wynosi <strong>${escapeHtml(offer.netLabel)}</strong> netto + VAT, tj. <strong>${escapeHtml(
+        offer.grossLabel
+      )}</strong> brutto.</p>`
+    : `<p>4. Strony przyjmują, że orientacyjna wartość planowanej realizacji według oferty nr <strong>${escapeHtml(
+        offer.number
+      )}</strong> wynosi <strong>${escapeHtml(offer.grossLabel)}</strong> brutto.</p>`;
+
+  return `
+    <div class="contract-document">
+      <h3>UMOWA WSTĘPNA O WYKONANIE PRAC REMONTOWYCH</h3>
+      <p>zawarta w dniu <strong>${escapeHtml(formatDisplayDate(terms.contractDate))}</strong> w miejscowości <strong>${escapeHtml(
+        terms.contractCity || "Warszawa"
+      )}</strong></p>
+      <p><strong>pomiędzy:</strong></p>
+      <p><strong>WYKONAWCĄ:</strong><br />Piotr Kowalczyk<br />P&amp;P Profinish<br />ul. Banderii 4/276<br />01-164 Warszawa<br />NIP: 7962883242</p>
+      ${getClientContractHtml(offer.clientDetails)}
+      <p>zwanymi dalej łącznie „Stronami”, a każda z osobna „Stroną”.</p>
+      <h4>§1. Cel umowy wstępnej</h4>
+      <p>1. Strony potwierdzają wolę zawarcia właściwej umowy o wykonanie prac remontowych na podstawie oferty nr <strong>${escapeHtml(
+        offer.number
+      )}</strong> z dnia <strong>${escapeHtml(offer.date)}</strong>.</p>
+      <p>2. Niniejsza umowa wstępna służy rezerwacji terminu realizacji oraz potwierdzeniu podstawowych warunków współpracy.</p>
+      <h4>§2. Zakres i termin planowanych prac</h4>
+      <p>1. Planowany zakres prac obejmuje w szczególności:</p>
+      <ul>${getScopeHtml(offer.items)}</ul>
+      <p>2. Planowane miejsce realizacji prac: <strong>${escapeHtml(terms.worksiteAddress || "-")}</strong>.</p>
+      <p>3. Planowany termin rozpoczęcia prac: <strong>${escapeHtml(formatDisplayDate(terms.startDate))}</strong>.</p>
+      <p>4. Planowany termin zakończenia prac: <strong>${escapeHtml(formatDisplayDate(terms.endDate))}</strong>.</p>
+      ${remunerationHtml}
+      <h4>§3. Rezerwacja terminu i kara za rezygnację</h4>
+      <p>1. Z chwilą podpisania niniejszej umowy Wykonawca rezerwuje termin realizacji dla Zamawiającego i organizuje harmonogram prac z uwzględnieniem tej rezerwacji.</p>
+      <p>2. W przypadku rezygnacji Zamawiającego z realizacji prac bez ważnej przyczyny po zawarciu niniejszej umowy, Zamawiający zobowiązuje się zapłacić na rzecz Wykonawcy karę umowną w wysokości <strong>${escapeHtml(
+        preliminaryPenaltyLabel
+      )}</strong>.</p>
+      <p>3. Kara, o której mowa powyżej, płatna jest w terminie <strong>${escapeHtml(
+        penaltyPaymentDays
+      )} dni</strong> od dnia doręczenia wezwania do zapłaty.</p>
+      <p>4. Zawarcie umowy właściwej o wykonanie prac remontowych nie wyłącza skuteczności ustaleń organizacyjnych wynikających z niniejszej umowy wstępnej.</p>
+      ${additionalTermsHtml}
+      <h4>§4. Postanowienia końcowe</h4>
+      <p>1. W sprawach nieuregulowanych niniejszą umową zastosowanie mają odpowiednie przepisy Kodeksu cywilnego.</p>
+      <p>2. Wszelkie zmiany niniejszej umowy wymagają formy pisemnej.</p>
+      <p>3. Umowę sporządzono w dwóch jednobrzmiących egzemplarzach, po jednym dla każdej ze Stron.</p>
+      <div class="signature-row">
+        <div><strong>ZAMAWIAJĄCY</strong><p>DATA: ____________________</p><p>PODPIS: ____________________</p></div>
+        <div><strong>WYKONAWCA</strong><p>DATA: ____________________</p><p>PODPIS: ____________________</p></div>
+      </div>
+    </div>
+  `;
+};
+
 const buildOfferPdfRows = (offer) => {
   const categoryTotals = getCategoryTotals(offer.items || []);
 
@@ -1202,16 +1288,19 @@ const exportOfferPagesPdf = async ({ offer, filename }) => {
   doc.save(filename);
 };
 
-const buildContractPdfHtml = (offer) => {
-  const contractBody = buildContractHtml(offer).replace(
-    /<h3>UMOWA O WYKONANIE PRAC REMONTOWYCH<\/h3>/,
+const buildContractPdfHtml = (offer, htmlBuilder = buildContractHtml) => {
+  const rawHtml = htmlBuilder(offer);
+  const titleMatch = rawHtml.match(/<h3>(.*?)<\/h3>/);
+  const contractTitle = titleMatch?.[1] || "UMOWA";
+  const contractBody = rawHtml.replace(
+    /<h3>.*?<\/h3>/,
     ""
   );
 
   return `
     <div style="font-family: Arial, sans-serif; color: #1f1a17; background: #ffffff; font-size: 11px; line-height: 1.45;">
       <div style="display:grid; justify-items:center; gap:8px; margin: 8px 0 18px;">
-        <h1 style="margin:0; font-size:22px; text-align:center; letter-spacing:0.02em;">UMOWA O WYKONANIE PRAC REMONTOWYCH</h1>
+        <h1 style="margin:0; font-size:22px; text-align:center; letter-spacing:0.02em;">${contractTitle}</h1>
       </div>
       <div style="border-top:1px solid #d7d1c8; padding-top:18px;">
         ${contractBody}
@@ -1410,12 +1499,12 @@ const buildContractPageDocumentHtml = (contentHtml, compact = true) => `
   </div>
 `;
 
-const paginateContractContent = (offer) => {
+const paginateContractContent = (offer, htmlBuilder = buildContractHtml) => {
   const parser = new DOMParser();
-  const parsed = parser.parseFromString(buildContractHtml(offer), "text/html");
+  const parsed = parser.parseFromString(htmlBuilder(offer), "text/html");
   const root = parsed.body.querySelector(".contract-document");
   if (!root) {
-    return [buildContractPageDocumentHtml(buildContractPdfHtml(offer), true)];
+    return [buildContractPageDocumentHtml(buildContractPdfHtml(offer, htmlBuilder), true)];
   }
 
   const titleNode = root.querySelector("h3");
@@ -1501,14 +1590,14 @@ const paginateContractContent = (offer) => {
   return pages;
 };
 
-const exportContractPagesPdf = async ({ offer, filename }) => {
+const exportContractPagesPdf = async ({ offer, filename, htmlBuilder = buildContractHtml }) => {
   const doc = createPdf();
   if (!doc) {
     return;
   }
 
   await preloadLogoForPdf();
-  const pagesHtml = paginateContractContent(offer);
+  const pagesHtml = paginateContractContent(offer, htmlBuilder);
   const metrics = getPdfPageMetrics();
 
   for (let index = 0; index < pagesHtml.length; index += 1) {
@@ -1602,6 +1691,23 @@ const downloadContractPdf = (offerId) => {
   });
 };
 
+const downloadPreliminaryContractPdf = (offerId) => {
+  const offer = state.savedOffers.find((entry) => entry.id === offerId);
+  if (!offer) {
+    showToast("Nie udało się przygotować PDF umowy wstępnej.");
+    return;
+  }
+  (async () => {
+    await exportContractPagesPdf({
+      offer,
+      filename: `${offer.number}-umowa-wstepna.pdf`,
+      htmlBuilder: buildPreliminaryContractHtml,
+    });
+  })().catch(() => {
+    showToast("Nie udało się wygenerować PDF umowy wstępnej.");
+  });
+};
+
 const deleteOffer = async (offerId) => {
   try {
     const payload = await apiRequest(`/api/offers/${offerId}`, {
@@ -1663,6 +1769,10 @@ const editOffer = (offerId, tabToOpen = "offers") => {
   breachPenaltyUnit.value = offer.contractTerms.breachPenaltyUnit || "%";
   breachPenaltyTiming.value = offer.contractTerms.breachPenaltyTiming || "za każdy dzień naruszenia";
   breachCureDays.value = offer.contractTerms.breachCureDays || "3";
+  preliminaryPenaltyValue.value = offer.contractTerms.preliminaryPenaltyValue || "5000";
+  preliminaryPenaltyUnit.value = offer.contractTerms.preliminaryPenaltyUnit || "zł";
+  preliminaryPenaltyPaymentDays.value = offer.contractTerms.preliminaryPenaltyPaymentDays || "7";
+  preliminaryTerms.value = offer.contractTerms.preliminaryTerms || "";
   updatePaymentSettingsVisibility();
 
   document.querySelector(`input[name="clientType"][value="${offer.clientType}"]`).checked = true;
@@ -1904,6 +2014,7 @@ const renderSavedContracts = () => {
           <div class="saved-actions">
             <button type="button" class="button button-secondary edit-contract" data-offer-id="${contract.offerId}">Edytuj z oferty</button>
             <button type="button" class="button button-secondary download-contract-pdf" data-offer-id="${contract.offerId}">Pobierz PDF</button>
+            <button type="button" class="button button-secondary download-preliminary-contract-pdf" data-offer-id="${contract.offerId}">Umowa wstępna</button>
             <button type="button" class="button button-secondary delete-contract" data-offer-id="${contract.offerId}">X</button>
           </div>
         </article>
@@ -1916,6 +2027,9 @@ const renderSavedContracts = () => {
   });
   savedContractsList.querySelectorAll(".download-contract-pdf").forEach((button) => {
     button.addEventListener("click", () => downloadContractPdf(button.dataset.offerId));
+  });
+  savedContractsList.querySelectorAll(".download-preliminary-contract-pdf").forEach((button) => {
+    button.addEventListener("click", () => downloadPreliminaryContractPdf(button.dataset.offerId));
   });
   savedContractsList.querySelectorAll(".delete-contract").forEach((button) => {
     button.addEventListener("click", () => deleteOffer(button.dataset.offerId));
@@ -1972,6 +2086,10 @@ const resetOfferForm = () => {
   breachPenaltyUnit.value = "%";
   breachPenaltyTiming.value = "za każdy dzień naruszenia";
   breachCureDays.value = "3";
+  preliminaryPenaltyValue.value = "5000";
+  preliminaryPenaltyUnit.value = "zł";
+  preliminaryPenaltyPaymentDays.value = "7";
+  preliminaryTerms.value = "";
   updatePaymentSettingsVisibility();
   offerNumber.textContent = state.nextOfferNumber || offerNumber.textContent;
   offerDate.textContent = formatDate(new Date());
