@@ -94,7 +94,9 @@ const customWarrantyPeriod = document.getElementById("customWarrantyPeriod");
 const customIndividualFields = document.getElementById("customIndividualFields");
 const customCompanyFields = document.getElementById("customCompanyFields");
 const customIndividualName = document.getElementById("customIndividualName");
+const customIndividualPesel = document.getElementById("customIndividualPesel");
 const customIndividualPhone = document.getElementById("customIndividualPhone");
+const customIndividualIdNumber = document.getElementById("customIndividualIdNumber");
 const customIndividualEmail = document.getElementById("customIndividualEmail");
 const customIndividualAddress = document.getElementById("customIndividualAddress");
 const customCompanyName = document.getElementById("customCompanyName");
@@ -264,7 +266,9 @@ const getCustomContractClientDetails = () => {
   return {
     type,
     name: customIndividualName.value.trim(),
+    pesel: customIndividualPesel.value.trim(),
     phone: customIndividualPhone.value.trim(),
+    idNumber: customIndividualIdNumber.value.trim(),
     email: customIndividualEmail.value.trim(),
     address: customIndividualAddress.value.trim(),
   };
@@ -624,7 +628,9 @@ const getClientDetails = () => {
   return {
     type,
     name: document.getElementById("individualName").value.trim(),
+    pesel: document.getElementById("individualPesel").value.trim(),
     phone: document.getElementById("individualPhone").value.trim(),
+    idNumber: document.getElementById("individualIdNumber").value.trim(),
     email: document.getElementById("individualEmail").value.trim(),
     address: document.getElementById("individualAddress").value.trim(),
   };
@@ -869,6 +875,8 @@ const getClientContractHtml = (clientDetails) => {
     <p><strong>ZAMAWIAJĄCYM:</strong><br />
     ${escapeHtml(clientDetails.name || "-")}<br />
     ${escapeHtml(clientDetails.address || "-")}<br />
+    PESEL: ${escapeHtml(clientDetails.pesel || "-")}<br />
+    Nr dowodu: ${escapeHtml(clientDetails.idNumber || "-")}<br />
     Tel.: ${escapeHtml(clientDetails.phone || "-")}<br />
     E-mail: ${escapeHtml(clientDetails.email || "-")}</p>
   `;
@@ -1370,6 +1378,8 @@ const buildOfferPdfHeaderHtml = (offer, continuation = false) => {
       `
       : `
         <div><strong>Klient:</strong> ${escapeHtml(offer.clientDetails.name || "")}</div>
+        <div><strong>PESEL:</strong> ${escapeHtml(offer.clientDetails.pesel || "-")}</div>
+        <div><strong>Nr dowodu:</strong> ${escapeHtml(offer.clientDetails.idNumber || "-")}</div>
         <div><strong>Telefon:</strong> ${escapeHtml(offer.clientDetails.phone || "-")}</div>
         <div><strong>E-mail:</strong> ${escapeHtml(offer.clientDetails.email || "-")}</div>
         <div><strong>Adres:</strong> ${escapeHtml(offer.clientDetails.address || "-")}</div>
@@ -2201,6 +2211,8 @@ const editOffer = (offerId, tabToOpen = "offers") => {
     document.getElementById("companyAddress").value = offer.clientDetails.address || "";
   } else {
     document.getElementById("individualName").value = offer.clientDetails.name || "";
+    document.getElementById("individualPesel").value = offer.clientDetails.pesel || "";
+    document.getElementById("individualIdNumber").value = offer.clientDetails.idNumber || "";
     document.getElementById("individualPhone").value = offer.clientDetails.phone || "";
     document.getElementById("individualEmail").value = offer.clientDetails.email || "";
     document.getElementById("individualAddress").value = offer.clientDetails.address || "";
@@ -2273,6 +2285,8 @@ const editCustomContract = (contractId) => {
     customCompanyAddress.value = contract.clientDetails.address || "";
   } else {
     customIndividualName.value = contract.clientDetails.name || "";
+    customIndividualPesel.value = contract.clientDetails.pesel || "";
+    customIndividualIdNumber.value = contract.clientDetails.idNumber || "";
     customIndividualPhone.value = contract.clientDetails.phone || "";
     customIndividualEmail.value = contract.clientDetails.email || "";
     customIndividualAddress.value = contract.clientDetails.address || "";
@@ -2592,6 +2606,8 @@ const resetOfferForm = () => {
   document.getElementById("validUntil").value = "";
   document.getElementById("offerNotes").value = "";
   document.getElementById("individualName").value = "";
+  document.getElementById("individualPesel").value = "";
+  document.getElementById("individualIdNumber").value = "";
   document.getElementById("individualPhone").value = "";
   document.getElementById("individualEmail").value = "";
   document.getElementById("individualAddress").value = "";
@@ -2644,6 +2660,8 @@ const resetOfferForm = () => {
   customContractVatValue.value = "0";
   customContractScope.value = "";
   customIndividualName.value = "";
+  customIndividualPesel.value = "";
+  customIndividualIdNumber.value = "";
   customIndividualPhone.value = "";
   customIndividualEmail.value = "";
   customIndividualAddress.value = "";
