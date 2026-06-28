@@ -62,6 +62,7 @@
             <button class="nav-link is-active" data-tab-target="offers">Oferty / rachunki</button>
             <button class="nav-link" data-tab-target="contracts" data-contract-editor-mode="linked">Umowy</button>
             <button class="nav-link" data-tab-target="contracts" data-contract-editor-mode="custom">Stwórz własną umowę</button>
+            <button class="nav-link" data-tab-target="custom-contracts">Własne umowy</button>
             <button class="nav-link" data-tab-target="board">Tablica</button>
             <button class="nav-link" data-tab-target="saved">Zapisane oferty i umowy</button>
             <button class="nav-link" data-tab-target="receipts">Rachunki</button>
@@ -807,15 +808,24 @@
                     <p class="empty-state">Umowy pojawią się automatycznie po zapisaniu oferty.</p>
                   </div>
                 </section>
-                <section class="section-box archive-box">
-                  <div class="section-header">
-                    <h4>Własne umowy</h4>
-                  </div>
-                  <div class="saved-list" id="savedCustomContractsList">
-                    <p class="empty-state">Tutaj pojawią się własne umowy niezależne od ofert.</p>
-                  </div>
-                </section>
               </div>
+            </article>
+
+            <article class="panel glass-card tab-panel" data-tab="custom-contracts">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Archiwum własne</p>
+                  <h3>Własne umowy</h3>
+                </div>
+              </div>
+              <section class="section-box archive-box">
+                <div class="section-header">
+                  <h4>Zapisane własne umowy</h4>
+                </div>
+                <div class="saved-list" id="savedCustomContractsList">
+                  <p class="empty-state">Tutaj pojawią się własne umowy niezależne od ofert.</p>
+                </div>
+              </section>
             </article>
 
             <article class="panel glass-card tab-panel" data-tab="receipts">
