@@ -35,6 +35,7 @@ const offerNumberBadgeLabel = document.getElementById("offerNumberBadgeLabel");
 const savedOffersList = document.getElementById("savedOffersList");
 const savedReceiptsList = document.getElementById("savedReceiptsList");
 const savedContractsList = document.getElementById("savedContractsList");
+const savedCustomContractsList = document.getElementById("savedCustomContractsList");
 const boardNotesList = document.getElementById("boardNotesList");
 const boardNoteInput = document.getElementById("boardNoteInput");
 const addBoardNoteButton = document.getElementById("addBoardNoteButton");
@@ -79,6 +80,35 @@ const preliminaryPenaltyPaymentDays = document.getElementById("preliminaryPenalt
 const preliminaryTerms = document.getElementById("preliminaryTerms");
 const contractPreview = document.getElementById("contractPreview");
 const contractDraftSection = document.querySelector(".contract-draft");
+const contractsEyebrow = document.getElementById("contractsEyebrow");
+const contractsPanelTitle = document.getElementById("contractsPanelTitle");
+const customContractBadges = document.getElementById("customContractBadges");
+const customContractNumber = document.getElementById("customContractNumber");
+const customContractDate = document.getElementById("customContractDate");
+const customContractIntro = document.getElementById("customContractIntro");
+const linkedContractIntro = document.getElementById("linkedContractIntro");
+const linkedContractSummary = document.getElementById("linkedContractSummary");
+const customContractSummary = document.getElementById("customContractSummary");
+const customContractTitle = document.getElementById("customContractTitle");
+const customWarrantyPeriod = document.getElementById("customWarrantyPeriod");
+const customIndividualFields = document.getElementById("customIndividualFields");
+const customCompanyFields = document.getElementById("customCompanyFields");
+const customIndividualName = document.getElementById("customIndividualName");
+const customIndividualPhone = document.getElementById("customIndividualPhone");
+const customIndividualEmail = document.getElementById("customIndividualEmail");
+const customIndividualAddress = document.getElementById("customIndividualAddress");
+const customCompanyName = document.getElementById("customCompanyName");
+const customCompanyTaxId = document.getElementById("customCompanyTaxId");
+const customCompanyContact = document.getElementById("customCompanyContact");
+const customCompanyPhone = document.getElementById("customCompanyPhone");
+const customCompanyEmail = document.getElementById("customCompanyEmail");
+const customCompanyAddress = document.getElementById("customCompanyAddress");
+const customContractNetValue = document.getElementById("customContractNetValue");
+const customContractVatValue = document.getElementById("customContractVatValue");
+const customContractScope = document.getElementById("customContractScope");
+const customContractClient = document.getElementById("customContractClient");
+const customContractValue = document.getElementById("customContractValue");
+const customContractScopePreview = document.getElementById("customContractScopePreview");
 
 const demoUsers = [
   { login: "Piotr Kowalczyk", password: "Kowalczyk", name: "Piotr Kowalczyk" },
@@ -90,9 +120,13 @@ const state = {
   offerSequence: 1,
   savedOffers: [],
   savedContracts: [],
+  savedCustomContracts: [],
   boardNotes: [],
   editingOfferId: null,
+  editingCustomContractId: null,
+  contractEditorMode: "linked",
   nextOfferNumber: "",
+  nextCustomContractNumber: "",
 };
 
 const currency = new Intl.NumberFormat("pl-PL", {
@@ -186,12 +220,103 @@ relocatePreliminarySettingsSection();
 const applyBootstrapData = (payload) => {
   state.savedOffers = payload.offers || [];
   state.savedContracts = payload.contracts || [];
+  state.savedCustomContracts = payload.customContracts || [];
   state.boardNotes = payload.boardNotes || [];
   state.nextOfferNumber = payload.nextOfferNumber || state.nextOfferNumber;
+  state.nextCustomContractNumber = payload.nextCustomContractNumber || state.nextCustomContractNumber;
   renderSavedOffers();
   renderSavedReceipts();
   renderSavedContracts();
+  renderSavedCustomContracts();
   renderBoardNotes();
+};
+
+const isCustomContractMode = () => state.contractEditorMode === "custom";
+
+const getCustomContractClientType = () =>
+  document.querySelector('input[name="customContractClientType"]:checked')?.value || "individual";
+
+const toggleCustomContractClientFields = () => {
+  const isCompany = getCustomContractClientType() === "company";
+  customIndividualFields?.classList.toggle("hidden", isCompany);
+  customCompanyFields?.classList.toggle("hidden", !isCompany);
+};
+
+const getCustomContractClientLabel = () =>
+  getCustomContractClientType() === "company"
+    ? customCompanyName.value.trim() || "Nie podano firmy"
+    : customIndividualName.value.trim() || "Nie podano klienta";
+
+const getCustomContractClientDetails = () => {
+  const type = getCustomContractClientType();
+  if (type === "company") {
+    return {
+      type,
+      companyName: customCompanyName.value.trim(),
+      taxId: customCompanyTaxId.value.trim(),
+      contact: customCompanyContact.value.trim(),
+      phone: customCompanyPhone.value.trim(),
+      email: customCompanyEmail.value.trim(),
+      address: customCompanyAddress.value.trim(),
+    };
+  }
+
+  return {
+    type,
+    name: customIndividualName.value.trim(),
+    phone: customIndividualPhone.value.trim(),
+    email: customIndividualEmail.value.trim(),
+    address: customIndividualAddress.value.trim(),
+  };
+};
+
+const getCustomContractTotals = () => {
+  const net = Number(customContractNetValue.value) || 0;
+  const vat = Number(customContractVatValue.value) || 0;
+  const gross = Math.max(0, net + vat);
+  return {
+    net,
+    vat,
+    gross,
+    netLabel: currency.format(net),
+    vatLabel: currency.format(vat),
+    grossLabel: currency.format(gross),
+  };
+};
+
+const getCustomContractScopeLines = () =>
+  String(customContractScope.value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+const setContractEditorMode = (mode = "linked") => {
+  state.contractEditorMode = mode === "custom" ? "custom" : "linked";
+  const isCustom = isCustomContractMode();
+  linkedContractIntro?.classList.toggle("hidden", isCustom);
+  linkedContractSummary?.classList.toggle("hidden", isCustom);
+  customContractIntro?.classList.toggle("hidden", !isCustom);
+  customContractSummary?.classList.toggle("hidden", !isCustom);
+  customContractBadges?.classList.toggle("hidden", !isCustom);
+  if (contractsEyebrow) {
+    contractsEyebrow.textContent = isCustom ? "Własna umowa" : "Generator umowy";
+  }
+  if (contractsPanelTitle) {
+    contractsPanelTitle.textContent = isCustom ? "Stwórz własną umowę" : "Umowa na prace remontowe";
+  }
+  if (saveContractButton) {
+    saveContractButton.textContent = isCustom
+      ? state.editingCustomContractId
+        ? "Zapisz zmiany w własnej umowie"
+        : "Zapisz własną umowę"
+      : state.editingOfferId
+        ? "Zapisz zmiany w umowie"
+        : "Zapisz ofertę i umowę";
+  }
+  if (isCustom) {
+    refreshCustomContractNumberPreview();
+  }
+  syncContractPreview();
 };
 
 const CATEGORY_UNIT = "__category__";
@@ -210,6 +335,22 @@ const refreshOfferNumberPreview = async () => {
     linkedOffer.value = payload.nextOfferNumber;
   } catch (_error) {
     offerNumber.textContent = state.nextOfferNumber || offerNumber.textContent;
+  }
+};
+
+const refreshCustomContractNumberPreview = async () => {
+  if (state.editingCustomContractId) {
+    return;
+  }
+
+  try {
+    const payload = await apiRequest("/api/offers/preview-number?kind=customContract", {
+      method: "GET",
+    });
+    state.nextCustomContractNumber = payload.nextOfferNumber;
+    customContractNumber.textContent = payload.nextOfferNumber;
+  } catch (_error) {
+    customContractNumber.textContent = state.nextCustomContractNumber || customContractNumber.textContent;
   }
 };
 
@@ -454,9 +595,7 @@ const updateDocumentKindUi = () => {
   itemsSectionTitle.textContent = labels.itemsTitle;
   offerNumberBadgeLabel.textContent = labels.numberLabel;
   saveOfferButton.textContent = state.editingOfferId ? `Zapisz zmiany w ${labels.singular}` : labels.saveLabel;
-  if (saveContractButton) {
-    saveContractButton.textContent = state.editingOfferId ? "Zapisz zmiany w umowie" : "Zapisz ofertę i umowę";
-  }
+  setContractEditorMode(state.contractEditorMode);
 };
 
 const isReceiptDocument = (offer = {}) => getOfferDocumentKind(offer) === "receipt";
@@ -492,6 +631,18 @@ const getClientDetails = () => {
 };
 
 const syncContractPreview = () => {
+  if (isCustomContractMode()) {
+    const totals = getCustomContractTotals();
+    customContractClient.textContent = getCustomContractClientLabel();
+    customContractValue.textContent =
+      getCustomContractClientType() === "company"
+        ? `${totals.netLabel} netto + VAT ${totals.vatLabel} = ${totals.grossLabel} brutto`
+        : `${totals.grossLabel} brutto`;
+    customContractScopePreview.textContent = getCustomContractScopeLines()[0] || "Brak zakresu prac";
+    renderContractPreview();
+    return;
+  }
+
   const items = getChargeableItems().filter((item) => item.name);
   const totals = getTotalsSnapshot();
   const isCompany = getClientType() === "company";
@@ -961,6 +1112,119 @@ const buildOfferPdfHtml = (offer) => {
         <h3 style="margin:0 0 8px; font-size:13px;">Uwagi</h3>
         <div style="white-space:pre-wrap;">${formatMultilineHtml(offer.notes)}</div>
       </section>
+    </div>
+  `;
+};
+
+const getStandaloneScopeHtml = (scopeText) => {
+  const lines = String(scopeText || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    return "<li>Zakres prac zostanie uzupełniony indywidualnie przez Strony.</li>";
+  }
+
+  return lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
+};
+
+const buildStandaloneContractHtml = (contract) => {
+  const terms = contract.contractTerms || {};
+  const isCompany = contract.clientDetails.type === "company";
+  const materialsPenaltyLabel = getPenaltyLabel(
+    terms.materialsPenaltyValue,
+    terms.materialsPenaltyUnit,
+    terms.materialsPenaltyTiming
+  );
+  const breachPenaltyLabel = getPenaltyLabel(
+    terms.breachPenaltyValue,
+    terms.breachPenaltyUnit,
+    terms.breachPenaltyTiming
+  );
+  const materialsPenaltySection = terms.materialsPenaltyEnabled
+    ? `<p>2. W razie opóźnienia w dostarczeniu materiałów przez Zamawiającego Wykonawca ma prawo wstrzymać wykonywanie prac, odpowiednio wydłużyć termin realizacji prac o okres przestoju oraz naliczyć Zamawiającemu karę umowną w wysokości <strong>${escapeHtml(
+        materialsPenaltyLabel
+      )}</strong>.</p>`
+    : "";
+  const breachPenaltySection = terms.breachPenaltyEnabled
+    ? `<p>3. W przypadku niewykonania lub nienależytego wykonania przez Zamawiającego obowiązków wynikających z niniejszej umowy Wykonawca ma prawo naliczyć karę umowną w wysokości <strong>${escapeHtml(
+        breachPenaltyLabel
+      )}</strong>.</p>`
+    : "";
+  const breachFollowupNumber = terms.breachPenaltyEnabled ? "4" : terms.materialsPenaltyEnabled ? "3" : "2";
+  const remunerationHtml = isCompany
+    ? `
+      <p>1. Strony ustalają wynagrodzenie za wykonanie prac objętych niniejszą umową w następującej wysokości:</p>
+      <p><strong>Wartość netto:</strong> ${escapeHtml(contract.netLabel)}</p>
+      <p><strong>Podatek VAT:</strong> ${escapeHtml(contract.vatLabel)}</p>
+      <p><strong>Wartość brutto:</strong> ${escapeHtml(contract.grossLabel)}</p>
+    `
+    : `
+      <p>1. Strony ustalają wynagrodzenie za wykonanie prac objętych niniejszą umową na kwotę brutto: <strong>${escapeHtml(
+        contract.grossLabel
+      )}</strong>.</p>
+    `;
+  const paymentClauseHtml = buildPaymentClauseHtml(terms);
+
+  return `
+    <div class="contract-document">
+      <h3>UMOWA O WYKONANIE PRAC REMONTOWYCH</h3>
+      <p>zawarta w dniu <strong>${escapeHtml(formatDisplayDate(terms.contractDate))}</strong> w miejscowości <strong>${escapeHtml(
+        terms.contractCity
+      )}</strong></p>
+      <p><strong>pomiędzy:</strong></p>
+      <p><strong>WYKONAWCĄ:</strong><br />Piotr Kowalczyk<br />P&amp;P Profinish<br />ul. Banderii 4/276<br />01-164 Warszawa<br />NIP: 7962883242</p>
+      ${getClientContractHtml(contract.clientDetails)}
+      <p>zwanymi dalej łącznie „Stronami”, a każda z osobna „Stroną”.</p>
+      <h4>§1. Przedmiot umowy</h4>
+      <p>1. Zamawiający zleca, a Wykonawca zobowiązuje się do wykonania prac remontowych zgodnie z indywidualnie ustalonym zakresem prac opisanym w niniejszej umowie.</p>
+      <p>2. Zakres prac obejmuje w szczególności:</p>
+      <ul>${getStandaloneScopeHtml(contract.scopeText)}</ul>
+      <p>3. Wszelkie prace niewskazane w zakresie będą traktowane jako prace dodatkowe i podlegać będą odrębnemu rozliczeniu po uprzednim uzgodnieniu ich zakresu oraz wartości przez Strony.</p>
+      <p>4. Prace zostaną wykonane pod adresem: <strong>${escapeHtml(terms.worksiteAddress || "-")}</strong>.</p>
+      <p>5. Wykonawca zobowiązuje się wykonać przedmiot umowy zgodnie z zasadami sztuki budowlanej, obowiązującymi przepisami prawa oraz z należytą starannością.</p>
+      <h4>§2. Materiały budowlane</h4>
+      <p>1. Strony ustalają, że materiały budowlane i pomocnicze zapewnia: <strong>${escapeHtml(terms.materialsProvider)}</strong>.</p>
+      <p>2. W przypadku gdy materiały zapewnia Zamawiający, zobowiązany jest on do dostarczenia materiałów odpowiedniej jakości i w ilości umożliwiającej ciągłą realizację prac.</p>
+      <p>3. Wykonawca nie ponosi odpowiedzialności za wady lub opóźnienia wynikające z użycia materiałów dostarczonych przez Zamawiającego, jeżeli uprzednio zgłosił zastrzeżenia co do ich jakości, przydatności lub kompletności.</p>
+      <h4>§3. Termin realizacji</h4>
+      <p>1. Rozpoczęcie prac nastąpi w dniu: <strong>${escapeHtml(formatDisplayDate(terms.startDate))}</strong>.</p>
+      <p>2. Przewidywany termin zakończenia prac ustala się na dzień: <strong>${escapeHtml(formatDisplayDate(terms.endDate))}</strong>.</p>
+      <p>3. Termin realizacji może ulec odpowiedniemu przedłużeniu w przypadku prac dodatkowych, opóźnień w dostawie materiałów, przeszkód niezależnych od Wykonawcy albo innych okoliczności uzgodnionych przez Strony.</p>
+      <h4>§4. Wynagrodzenie</h4>
+      ${remunerationHtml}
+      <p>2. Podstawą ustalenia wynagrodzenia są indywidualne ustalenia Stron potwierdzone przy zawarciu niniejszej umowy.</p>
+      ${paymentClauseHtml}
+      <h4>§5. Obowiązki Wykonawcy</h4>
+      <p>1. Wykonawca zobowiązuje się do wykonania prac zgodnie z umową, obowiązującymi przepisami prawa i zasadami sztuki budowlanej, stosowania materiałów odpowiedniej jakości, jeżeli obowiązek ich zapewnienia spoczywa na Wykonawcy, zachowania należytego porządku w miejscu wykonywania prac oraz realizacji prac zgodnie z dokonanymi ustaleniami albo poinformowania Zamawiającego o konieczności wydłużenia terminu.</p>
+      <h4>§6. Obowiązki Zamawiającego</h4>
+      <p>1. Zamawiający zobowiązuje się do udostępnienia miejsca wykonywania prac, współdziałania z Wykonawcą w zakresie niezbędnym do wykonania umowy, odbioru prac po ich zakończeniu, terminowej zapłaty wynagrodzenia, dostarczenia materiałów odpowiedniej jakości, jeżeli obowiązek ich zapewnienia spoczywa na Zamawiającym, oraz poinformowania osób trzecich o prowadzonych pracach, jeżeli jest to wymagane lub uzasadnione okolicznościami.</p>
+      <h4>§7. Gwarancja i odpowiedzialność</h4>
+      <p>1. Wykonawca udziela gwarancji na wykonane prace na okres: <strong>${escapeHtml(contract.warranty)}</strong>.</p>
+      <p>2. Wszelkie usterki wynikające z wadliwego wykonania prac Wykonawca zobowiązuje się usunąć w terminie 14 dni od dnia skutecznego zgłoszenia przez Zamawiającego, chyba że charakter usterki lub warunki techniczne uniemożliwiają usunięcie ich w tym terminie.</p>
+      <h4>§7a. Odpowiedzialność Zamawiającego</h4>
+      <p>1. W przypadku gdy obowiązek zapewnienia materiałów budowlanych spoczywa na Zamawiającym, Zamawiający zobowiązany jest do ich dostarczania terminowo, w ilości odpowiedniej do zachowania ciągłości prac oraz w jakości umożliwiającej prawidłowe wykonanie robót.</p>
+      ${materialsPenaltySection}
+      ${breachPenaltySection}
+      <p>${breachFollowupNumber}. Jeżeli naruszenie obowiązków przez Zamawiającego uniemożliwia realizację prac albo powoduje istotne utrudnienie w ich wykonywaniu, Wykonawca ma prawo po uprzednim wezwaniu Zamawiającego do usunięcia naruszenia w terminie <strong>${escapeHtml(
+        terms.breachCureDays
+      )} dni</strong> wstrzymać realizację prac, odpowiednio skorygować termin realizacji lub odstąpić od umowy w całości albo w części.</p>
+      <p>${Number(breachFollowupNumber) + 1}. W przypadku odstąpienia od umowy z przyczyn leżących po stronie Zamawiającego, Wykonawcy przysługuje wynagrodzenie za faktycznie wykonany zakres prac według stanu na dzień przerwania realizacji, płatne w terminie <strong>7 dni</strong> od dnia sporządzenia rozliczenia albo wezwania do zapłaty.</p>
+      <h4>§7b. Odpowiedzialność Wykonawcy</h4>
+      <p>1. Wykonawca ponosi odpowiedzialność za należyte wykonanie prac objętych niniejszą umową, zgodnie z jej postanowieniami, zasadami sztuki budowlanej oraz obowiązującymi przepisami prawa.</p>
+      <p>2. W przypadku stwierdzenia wad lub usterek wynikających z nienależytego wykonania prac przez Wykonawcę, Wykonawca zobowiązuje się do ich usunięcia w terminie 14 dni od dnia skutecznego zgłoszenia przez Zamawiającego, chyba że charakter wady, zakres prac naprawczych albo warunki techniczne uniemożliwiają usunięcie ich w tym terminie.</p>
+      <p>3. Wykonawca nie ponosi odpowiedzialności za wady i uszkodzenia wynikające z właściwości materiałów dostarczonych przez Zamawiającego, skutki wykonania prac zgodnie z wyraźnymi wskazaniami Zamawiającego po uprzednim zgłoszeniu zastrzeżeń, uszkodzenia lub wady powstałe wskutek ingerencji osób trzecich po wykonaniu prac, skutki niewłaściwego użytkowania oraz opóźnienia i następstwa zdarzeń niezależnych od Wykonawcy.</p>
+      <p>4. Jeżeli Wykonawca opóźnia się z realizacją prac z przyczyn leżących wyłącznie po jego stronie, Zamawiający ma prawo wezwać Wykonawcę do należytego wykonywania umowy i wyznaczyć mu odpowiedni termin na usunięcie naruszenia.</p>
+      <h4>§8. Postanowienia końcowe</h4>
+      <p>1. Wszelkie zmiany niniejszej umowy wymagają formy pisemnej pod rygorem nieważności.</p>
+      <p>2. W sprawach nieuregulowanych niniejszą umową zastosowanie mają odpowiednie przepisy Kodeksu cywilnego.</p>
+      <p>3. Strony zobowiązują się dążyć do polubownego rozwiązania wszelkich sporów wynikających z niniejszej umowy, a w przypadku braku porozumienia spory rozstrzygać będzie sąd właściwy miejscowo dla siedziby Wykonawcy.</p>
+      <p>4. Umowę sporządzono w dwóch jednobrzmiących egzemplarzach, po jednym dla każdej ze Stron.</p>
+      <div class="signature-row">
+        <div><strong>ZAMAWIAJĄCY</strong><p>DATA: ____________________</p><p>PODPIS: ____________________</p></div>
+        <div><strong>WYKONAWCA</strong><p>DATA: ____________________</p><p>PODPIS: ____________________</p></div>
+      </div>
     </div>
   `;
 };
@@ -1654,6 +1918,29 @@ const exportContractPagesPdf = async ({ offer, filename, htmlBuilder = buildCont
 };
 
 const renderContractPreview = () => {
+  if (isCustomContractMode()) {
+    const totals = getCustomContractTotals();
+    const customContract = {
+      id: state.editingCustomContractId || undefined,
+      number: customContractNumber.textContent,
+      date: customContractDate.textContent,
+      title: customContractTitle.value.trim(),
+      clientType: getCustomContractClientType(),
+      clientLabel: getCustomContractClientLabel(),
+      clientDetails: getCustomContractClientDetails(),
+      warranty: customWarrantyPeriod.value,
+      scopeText: customContractScope.value.trim(),
+      netLabel: totals.netLabel,
+      vatLabel: totals.vatLabel,
+      grossLabel: totals.grossLabel,
+      totalLabel: totals.grossLabel,
+      totals,
+      contractTerms: getContractTerms(),
+    };
+    contractPreview.innerHTML = buildStandaloneContractHtml(customContract);
+    return;
+  }
+
   const totals = getTotalsSnapshot();
   const items = collectItems().filter((item) => item.name);
   const offer = {
@@ -1722,6 +2009,23 @@ const downloadPreliminaryContractPdf = (offerId) => {
   });
 };
 
+const downloadCustomContractPdf = (contractId) => {
+  const contract = state.savedCustomContracts.find((entry) => entry.id === contractId);
+  if (!contract) {
+    showToast("Nie udało się przygotować PDF własnej umowy.");
+    return;
+  }
+  (async () => {
+    await exportContractPagesPdf({
+      offer: contract,
+      filename: `${contract.number}-umowa.pdf`,
+      htmlBuilder: buildStandaloneContractHtml,
+    });
+  })().catch(() => {
+    showToast("Nie udało się wygenerować PDF własnej umowy.");
+  });
+};
+
 const deleteOffer = async (offerId) => {
   try {
     const payload = await apiRequest(`/api/offers/${offerId}`, {
@@ -1744,6 +2048,8 @@ const editOffer = (offerId, tabToOpen = "offers") => {
     return;
   }
 
+  state.editingCustomContractId = null;
+  setContractEditorMode("linked");
   state.editingOfferId = offer.id;
   const documentKind = getOfferDocumentKind(offer);
   document.querySelector(`input[name="documentKind"][value="${documentKind}"]`).checked = true;
@@ -1814,6 +2120,74 @@ const editOffer = (offerId, tabToOpen = "offers") => {
   syncContractPreview();
   openTab(tabToOpen);
   showToast(`Wczytano do edycji: ${offer.number}.`);
+};
+
+const editCustomContract = (contractId) => {
+  const contract = state.savedCustomContracts.find((entry) => entry.id === contractId);
+  if (!contract) {
+    showToast("Nie udało się odnaleźć własnej umowy.");
+    return;
+  }
+
+  resetOfferForm();
+  state.editingCustomContractId = contract.id;
+  setContractEditorMode("custom");
+  customContractNumber.textContent = contract.number;
+  customContractDate.textContent = contract.date;
+  customContractTitle.value = contract.title || "";
+  customWarrantyPeriod.value = contract.warranty || "12 miesięcy";
+  contractDate.value = contract.contractTerms.contractDate || "";
+  contractCity.value = contract.contractTerms.contractCity || "Warszawa";
+  worksiteAddress.value = contract.contractTerms.worksiteAddress || "";
+  materialsProvider.value = contract.contractTerms.materialsProvider || "Wykonawca";
+  startDateInput.value = contract.contractTerms.startDate || "";
+  endDateInput.value = contract.contractTerms.endDate || "";
+  paymentMode.value = contract.contractTerms.paymentMode || "installments";
+  paymentInstallments.value = contract.contractTerms.paymentInstallments || "2";
+  paymentHasAdvance.value = contract.contractTerms.paymentHasAdvance || "no";
+  paymentAdvanceValue.value = contract.contractTerms.paymentAdvanceValue || "0";
+  paymentAdvanceUnit.value = contract.contractTerms.paymentAdvanceUnit || "zł";
+  paymentAdvanceTaxMode.value = contract.contractTerms.paymentAdvanceTaxMode || "brutto";
+  paymentAdvanceDate.value = contract.contractTerms.paymentAdvanceDate || "";
+  paymentFinalDate.value = contract.contractTerms.paymentFinalDate || "";
+  paymentScheduleDetails.value = contract.contractTerms.paymentScheduleDetails || "";
+  materialsPenaltyEnabled.checked = contract.contractTerms.materialsPenaltyEnabled ?? true;
+  materialsPenaltyValue.value = contract.contractTerms.materialsPenaltyValue || "300";
+  materialsPenaltyUnit.value = contract.contractTerms.materialsPenaltyUnit || "zł";
+  materialsPenaltyTiming.value = contract.contractTerms.materialsPenaltyTiming || "za każdy dzień opóźnienia";
+  breachPenaltyEnabled.checked = contract.contractTerms.breachPenaltyEnabled ?? true;
+  breachPenaltyValue.value = contract.contractTerms.breachPenaltyValue || "2";
+  breachPenaltyUnit.value = contract.contractTerms.breachPenaltyUnit || "%";
+  breachPenaltyTiming.value = contract.contractTerms.breachPenaltyTiming || "za każdy dzień naruszenia";
+  breachCureDays.value = contract.contractTerms.breachCureDays || "3";
+  preliminaryPenaltyValue.value = contract.contractTerms.preliminaryPenaltyValue || "5000";
+  preliminaryPenaltyUnit.value = contract.contractTerms.preliminaryPenaltyUnit || "zł";
+  preliminaryPenaltyPaymentDays.value = contract.contractTerms.preliminaryPenaltyPaymentDays || "7";
+  preliminaryTerms.value = contract.contractTerms.preliminaryTerms || "";
+  customContractNetValue.value = String(contract.totals?.net || 0);
+  customContractVatValue.value = String(contract.totals?.vat || 0);
+  customContractScope.value = contract.scopeText || "";
+  document.querySelector(`input[name="customContractClientType"][value="${contract.clientType}"]`).checked = true;
+  toggleCustomContractClientFields();
+
+  if (contract.clientType === "company") {
+    customCompanyName.value = contract.clientDetails.companyName || "";
+    customCompanyTaxId.value = contract.clientDetails.taxId || "";
+    customCompanyContact.value = contract.clientDetails.contact || "";
+    customCompanyPhone.value = contract.clientDetails.phone || "";
+    customCompanyEmail.value = contract.clientDetails.email || "";
+    customCompanyAddress.value = contract.clientDetails.address || "";
+  } else {
+    customIndividualName.value = contract.clientDetails.name || "";
+    customIndividualPhone.value = contract.clientDetails.phone || "";
+    customIndividualEmail.value = contract.clientDetails.email || "";
+    customIndividualAddress.value = contract.clientDetails.address || "";
+  }
+
+  updatePaymentSettingsVisibility();
+  syncContractPreview();
+  openTab("contracts");
+  showToast(`Wczytano do edycji: ${contract.number}.`);
 };
 
 const renderBoardNotes = () => {
@@ -2054,8 +2428,50 @@ const renderSavedContracts = () => {
   });
 };
 
+const renderSavedCustomContracts = () => {
+  if (!savedCustomContractsList) {
+    return;
+  }
+
+  if (!state.savedCustomContracts.length) {
+    savedCustomContractsList.innerHTML = '<p class="empty-state">Tutaj pojawią się własne umowy niezależne od ofert.</p>';
+    return;
+  }
+
+  savedCustomContractsList.innerHTML = state.savedCustomContracts
+    .map(
+      (contract) => `
+        <article class="saved-offer-card">
+          <strong>${contract.number} - własna umowa${contract.title ? `: ${contract.title}` : ""}</strong>
+          <div class="saved-meta">
+            <span>Klient: ${contract.clientLabel}</span>
+            <span>Kwota: ${contract.totalLabel}</span>
+            <span>Gwarancja: ${contract.warranty}</span>
+          </div>
+          <div class="saved-actions">
+            <button type="button" class="button button-secondary edit-custom-contract" data-contract-id="${contract.id}">Edytuj</button>
+            <button type="button" class="button button-secondary download-custom-contract-pdf" data-contract-id="${contract.id}">Pobierz PDF</button>
+            <button type="button" class="button button-secondary delete-custom-contract" data-contract-id="${contract.id}">X</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  savedCustomContractsList.querySelectorAll(".edit-custom-contract").forEach((button) => {
+    button.addEventListener("click", () => editCustomContract(button.dataset.contractId));
+  });
+  savedCustomContractsList.querySelectorAll(".download-custom-contract-pdf").forEach((button) => {
+    button.addEventListener("click", () => downloadCustomContractPdf(button.dataset.contractId));
+  });
+  savedCustomContractsList.querySelectorAll(".delete-custom-contract").forEach((button) => {
+    button.addEventListener("click", () => deleteCustomContract(button.dataset.contractId));
+  });
+};
+
 const resetOfferForm = () => {
   state.editingOfferId = null;
+  state.editingCustomContractId = null;
   document.querySelector('input[name="documentKind"][value="offer"]').checked = true;
   updateDocumentKindUi();
   document.getElementById("offerTitle").value = "";
@@ -2108,10 +2524,30 @@ const resetOfferForm = () => {
   preliminaryPenaltyUnit.value = "zł";
   preliminaryPenaltyPaymentDays.value = "7";
   preliminaryTerms.value = "";
+  customContractTitle.value = "";
+  customWarrantyPeriod.value = "12 miesięcy";
+  customContractNetValue.value = "0";
+  customContractVatValue.value = "0";
+  customContractScope.value = "";
+  customIndividualName.value = "";
+  customIndividualPhone.value = "";
+  customIndividualEmail.value = "";
+  customIndividualAddress.value = "";
+  customCompanyName.value = "";
+  customCompanyTaxId.value = "";
+  customCompanyContact.value = "";
+  customCompanyPhone.value = "";
+  customCompanyEmail.value = "";
+  customCompanyAddress.value = "";
+  document.querySelector('input[name="customContractClientType"][value="individual"]').checked = true;
+  toggleCustomContractClientFields();
   updatePaymentSettingsVisibility();
   offerNumber.textContent = state.nextOfferNumber || offerNumber.textContent;
   offerDate.textContent = formatDate(new Date());
   linkedOffer.value = offerNumber.textContent;
+  customContractNumber.textContent = state.nextCustomContractNumber || customContractNumber.textContent;
+  customContractDate.textContent = formatDate(new Date());
+  setContractEditorMode("linked");
   updateDocumentKindUi();
   syncContractPreview();
   updateTotals();
@@ -2245,6 +2681,7 @@ logoutButton?.addEventListener("click", async () => {
   state.user = null;
   state.savedOffers = [];
   state.savedContracts = [];
+  state.savedCustomContracts = [];
   state.boardNotes = [];
   currentUserLabel.textContent = "-";
   loginForm.reset();
@@ -2307,6 +2744,11 @@ receivedAmount?.addEventListener("input", () => {
   breachPenaltyTiming,
   breachCureDays,
   warrantyPeriod,
+  customWarrantyPeriod,
+  customContractTitle,
+  customContractNetValue,
+  customContractVatValue,
+  customContractScope,
 ].forEach((field) => {
   field?.addEventListener("input", syncContractPreview);
   field?.addEventListener("change", syncContractPreview);
@@ -2315,7 +2757,13 @@ paymentMode?.addEventListener("change", updatePaymentSettingsVisibility);
 paymentHasAdvance?.addEventListener("change", updatePaymentSettingsVisibility);
 prefillButton?.addEventListener("click", prefillDemoData);
 saveOfferButton?.addEventListener("click", saveOffer);
-saveContractButton?.addEventListener("click", saveOffer);
+saveContractButton?.addEventListener("click", () => {
+  if (isCustomContractMode()) {
+    saveCustomContract();
+    return;
+  }
+  saveOffer();
+});
 
 document.querySelectorAll('input[name="clientType"]').forEach((radio) => {
   radio.addEventListener("change", () => {
@@ -2332,8 +2780,39 @@ document.querySelectorAll('input[name="documentKind"]').forEach((radio) => {
   });
 });
 
+document.querySelectorAll('input[name="customContractClientType"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    toggleCustomContractClientFields();
+    syncContractPreview();
+  });
+});
+
+[
+  customIndividualName,
+  customIndividualPhone,
+  customIndividualEmail,
+  customIndividualAddress,
+  customCompanyName,
+  customCompanyTaxId,
+  customCompanyContact,
+  customCompanyPhone,
+  customCompanyEmail,
+  customCompanyAddress,
+].forEach((field) => {
+  field?.addEventListener("input", syncContractPreview);
+  field?.addEventListener("change", syncContractPreview);
+});
+
 document.querySelectorAll("[data-tab-target]").forEach((button) => {
-  button.addEventListener("click", () => openTab(button.dataset.tabTarget));
+  button.addEventListener("click", () => {
+    if (button.dataset.contractEditorMode) {
+      if (button.dataset.contractEditorMode === "custom" && state.contractEditorMode !== "custom") {
+        resetOfferForm();
+      }
+      setContractEditorMode(button.dataset.contractEditorMode);
+    }
+    openTab(button.dataset.tabTarget);
+  });
 });
 
 const initializeApp = async () => {
@@ -2351,10 +2830,79 @@ const initializeApp = async () => {
   } catch (_error) {
     renderSavedOffers();
     renderSavedContracts();
+    renderSavedCustomContracts();
     renderSavedReceipts();
     renderBoardNotes();
     switchView(false);
     resetOfferForm();
+  }
+};
+
+const saveCustomContract = async () => {
+  const scopeText = customContractScope.value.trim();
+  const totals = getCustomContractTotals();
+  const existingContract = state.editingCustomContractId
+    ? state.savedCustomContracts.find((entry) => entry.id === state.editingCustomContractId)
+    : null;
+
+  if (!customContractTitle.value.trim()) {
+    showToast("Dodaj tytuł własnej umowy przed zapisem.");
+    return;
+  }
+
+  if (!scopeText) {
+    showToast("Wpisz zakres prac dla własnej umowy.");
+    return;
+  }
+
+  const payloadToSave = {
+    id: state.editingCustomContractId || undefined,
+    number: state.editingCustomContractId ? customContractNumber.textContent : undefined,
+    title: customContractTitle.value.trim(),
+    clientType: getCustomContractClientType(),
+    clientLabel: getCustomContractClientLabel(),
+    clientDetails: getCustomContractClientDetails(),
+    issueDate: existingContract?.issueDate || new Date().toISOString().slice(0, 10),
+    date: customContractDate.textContent,
+    scopeText,
+    warranty: customWarrantyPeriod.value,
+    totalLabel: totals.grossLabel,
+    netLabel: totals.netLabel,
+    vatLabel: totals.vatLabel,
+    grossLabel: totals.grossLabel,
+    totals,
+    contractTerms: getContractTerms(),
+  };
+
+  try {
+    const payload = await apiRequest("/api/custom-contracts", {
+      method: "POST",
+      body: JSON.stringify(payloadToSave),
+    });
+    applyBootstrapData(payload);
+    showToast(state.editingCustomContractId ? "Zapisano zmiany w własnej umowie." : "Własna umowa została zapisana.");
+    resetOfferForm();
+    setContractEditorMode("custom");
+    openTab("contracts");
+  } catch (_error) {
+    showToast("Nie udało się zapisać własnej umowy.");
+  }
+};
+
+const deleteCustomContract = async (contractId) => {
+  try {
+    const payload = await apiRequest(`/api/custom-contracts/${contractId}`, {
+      method: "DELETE",
+    });
+    applyBootstrapData(payload);
+    if (state.editingCustomContractId === contractId) {
+      resetOfferForm();
+      setContractEditorMode("custom");
+      openTab("contracts");
+    }
+    showToast("Usunięto własną umowę.");
+  } catch (_error) {
+    showToast("Nie udało się usunąć własnej umowy.");
   }
 };
 

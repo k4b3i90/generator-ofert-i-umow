@@ -127,12 +127,12 @@ const requireAuth = (req, res, next) => {
 };
 
 const getDocumentNumberParts = (kind = "offer", date = new Date()) => {
-  const normalizedKind = kind === "receipt" ? "receipt" : "offer";
+  const normalizedKind = kind === "receipt" ? "receipt" : kind === "customContract" ? "customContract" : "offer";
   const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, "0");
   return {
     key: `${normalizedKind}:${year}:${month}`,
-    prefix: normalizedKind === "receipt" ? "RA" : "OF",
+    prefix: normalizedKind === "receipt" ? "RA" : normalizedKind === "customContract" ? "UM" : "OF",
     year,
     month,
   };
@@ -214,6 +214,31 @@ const mapContractRow = (row) => ({
   warranty: `${row.warranty_months} miesięcy`,
 });
 
+const mapCustomContractRow = (row) => ({
+  id: row.id,
+  number: row.contract_number,
+  title: row.title,
+  authorUserId: row.author_user_id,
+  author: row.author_name,
+  clientType: row.client_type,
+  clientLabel: row.client_label,
+  clientDetails: row.client_details || {},
+  scopeText: row.scope_text || "",
+  issueDate: row.issue_date,
+  date: toPlDate(row.issue_date),
+  warranty: `${row.warranty_months} miesiÄ™cy`,
+  totalLabel: new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(Number(row.totals_gross)),
+  netLabel: new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(Number(row.totals_net)),
+  vatLabel: new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(Number(row.totals_vat)),
+  grossLabel: new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(Number(row.totals_gross)),
+  totals: {
+    net: Number(row.totals_net),
+    vat: Number(row.totals_vat),
+    gross: Number(row.totals_gross),
+  },
+  contractTerms: row.contract_terms || {},
+});
+
 const mapBoardNotes = (noteRows, entryRows) => {
   const entriesByNoteId = entryRows.reduce((acc, row) => {
     if (!acc[row.note_id]) {
@@ -291,6 +316,23 @@ const loadBootstrapData = async () => {
 
   const contracts = contractsResult.rows.map(mapContractRow);
 
+  let customContracts = [];
+  try {
+    const customContractsResult = await pool.query(
+      `
+        select
+          c.*,
+          u.full_name as author_name
+        from public.custom_contracts c
+        join public.app_users u on u.id = c.author_user_id
+        order by c.updated_at desc, c.created_at desc
+      `
+    );
+    customContracts = customContractsResult.rows.map(mapCustomContractRow);
+  } catch (_error) {
+    customContracts = [];
+  }
+
   const notesResult = await pool.query(
     `
       select
@@ -323,8 +365,9 @@ const loadBootstrapData = async () => {
 
   const boardNotes = mapBoardNotes(notesResult.rows, noteEntriesResult.rows);
   const nextNumber = await previewDocumentNumber("offer");
+  const nextCustomContractNumber = await previewDocumentNumber("customContract");
 
-  return { offers, contracts, boardNotes, nextNumber };
+  return { offers, contracts, customContracts, boardNotes, nextNumber, nextCustomContractNumber };
 };
 
 app.get("/health", (_req, res) => {
@@ -376,8 +419,10 @@ app.get("/api/bootstrap", requireAuth, asyncHandler(async (req, res) => {
     user: req.user,
     offers: data.offers,
     contracts: data.contracts,
+    customContracts: data.customContracts,
     boardNotes: data.boardNotes,
     nextOfferNumber: data.nextNumber,
+    nextCustomContractNumber: data.nextCustomContractNumber,
   });
 }));
 
@@ -562,8 +607,10 @@ app.post("/api/offers", requireAuth, asyncHandler(async (req, res) => {
     res.json({
       offers: data.offers,
       contracts: data.contracts,
+      customContracts: data.customContracts,
       boardNotes: data.boardNotes,
       nextOfferNumber: data.nextNumber,
+      nextCustomContractNumber: data.nextCustomContractNumber,
       savedOfferId: offerId,
     });
   } catch (error) {
@@ -583,8 +630,124 @@ app.delete("/api/offers/:id", requireAuth, asyncHandler(async (req, res) => {
   res.json({
     offers: data.offers,
     contracts: data.contracts,
+    customContracts: data.customContracts,
     boardNotes: data.boardNotes,
     nextOfferNumber: data.nextNumber,
+    nextCustomContractNumber: data.nextCustomContractNumber,
+  });
+}));
+
+app.post("/api/custom-contracts", requireAuth, asyncHandler(async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("begin");
+
+    const contract = req.body || {};
+    let contractId = contract.id || null;
+    let contractNumber = contract.number || null;
+    const issueDate = contract.issueDate || new Date().toISOString().slice(0, 10);
+    const totalsNet = Number(contract.totals?.net ?? 0);
+    const totalsVat = Number(contract.totals?.vat ?? 0);
+    const totalsGross = Number(contract.totals?.gross ?? 0);
+    const warrantyMonths = Number.parseInt(String(contract.warranty || "12"), 10) || 12;
+    const existingContractResult = contractId
+      ? await client.query("select id, contract_number from public.custom_contracts where id = $1", [contractId])
+      : { rows: [] };
+    const existingContract = existingContractResult.rows[0];
+
+    if (existingContract) {
+      contractNumber = existingContract.contract_number;
+    } else {
+      contractNumber = await nextDocumentNumber(client, issueDate, "customContract");
+      contractId = crypto.randomUUID();
+    }
+
+    await client.query(
+      `
+        insert into public.custom_contracts (
+          id,
+          contract_number,
+          title,
+          author_user_id,
+          client_type,
+          client_label,
+          client_details,
+          scope_text,
+          issue_date,
+          totals_net,
+          totals_vat,
+          totals_gross,
+          warranty_months,
+          contract_terms
+        )
+        values ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12,$13,$14::jsonb)
+        on conflict (id) do update
+        set
+          contract_number = excluded.contract_number,
+          title = excluded.title,
+          author_user_id = excluded.author_user_id,
+          client_type = excluded.client_type,
+          client_label = excluded.client_label,
+          client_details = excluded.client_details,
+          scope_text = excluded.scope_text,
+          issue_date = excluded.issue_date,
+          totals_net = excluded.totals_net,
+          totals_vat = excluded.totals_vat,
+          totals_gross = excluded.totals_gross,
+          warranty_months = excluded.warranty_months,
+          contract_terms = excluded.contract_terms,
+          updated_at = now()
+      `,
+      [
+        contractId,
+        contractNumber,
+        contract.title,
+        req.user.id,
+        contract.clientType,
+        contract.clientLabel,
+        JSON.stringify(contract.clientDetails || {}),
+        contract.scopeText || "",
+        issueDate,
+        totalsNet,
+        totalsVat,
+        totalsGross,
+        warrantyMonths,
+        JSON.stringify(contract.contractTerms || {}),
+      ]
+    );
+
+    await client.query("commit");
+
+    const data = await loadBootstrapData();
+    res.json({
+      offers: data.offers,
+      contracts: data.contracts,
+      customContracts: data.customContracts,
+      boardNotes: data.boardNotes,
+      nextOfferNumber: data.nextNumber,
+      nextCustomContractNumber: data.nextCustomContractNumber,
+      savedCustomContractId: contractId,
+    });
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}));
+
+app.delete("/api/custom-contracts/:id", requireAuth, asyncHandler(async (req, res) => {
+  await pool.query("delete from public.custom_contracts where id = $1", [req.params.id]);
+
+  const data = await loadBootstrapData();
+  res.json({
+    offers: data.offers,
+    contracts: data.contracts,
+    customContracts: data.customContracts,
+    boardNotes: data.boardNotes,
+    nextOfferNumber: data.nextNumber,
+    nextCustomContractNumber: data.nextCustomContractNumber,
   });
 }));
 

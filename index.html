@@ -60,7 +60,8 @@
         <div class="layout-grid">
           <aside class="sidebar glass-card">
             <button class="nav-link is-active" data-tab-target="offers">Oferty / rachunki</button>
-            <button class="nav-link" data-tab-target="contracts">Umowy</button>
+            <button class="nav-link" data-tab-target="contracts" data-contract-editor-mode="linked">Umowy</button>
+            <button class="nav-link" data-tab-target="contracts" data-contract-editor-mode="custom">Stwórz własną umowę</button>
             <button class="nav-link" data-tab-target="board">Tablica</button>
             <button class="nav-link" data-tab-target="saved">Zapisane oferty i umowy</button>
             <button class="nav-link" data-tab-target="receipts">Rachunki</button>
@@ -433,11 +434,101 @@
             <article class="panel glass-card tab-panel" data-tab="contracts">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow">Generator umowy</p>
-                  <h3>Umowa na prace remontowe</h3>
+                  <p class="eyebrow" id="contractsEyebrow">Generator umowy</p>
+                  <h3 id="contractsPanelTitle">Umowa na prace remontowe</h3>
+                </div>
+                <div class="panel-badges hidden" id="customContractBadges">
+                  <span>Numer umowy: <strong id="customContractNumber">UM/2026/06/001</strong></span>
+                  <span>Data utworzenia: <strong id="customContractDate"></strong></span>
                 </div>
               </div>
-              <div class="form-grid form-grid-double">
+              <div class="section-box hidden" id="customContractIntro">
+                <div class="section-header">
+                  <h4>Dane własnej umowy</h4>
+                </div>
+                <div class="form-grid form-grid-double">
+                  <label>
+                    Tytuł umowy
+                    <input type="text" id="customContractTitle" placeholder="Np. Umowa na prace remontowe - lokal usługowy" />
+                  </label>
+                  <label>
+                    Gwarancja
+                    <select id="customWarrantyPeriod">
+                      <option>6 miesięcy</option>
+                      <option selected>12 miesięcy</option>
+                      <option>24 miesiące</option>
+                      <option>36 miesięcy</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="choice-row">
+                  <label><input type="radio" name="customContractClientType" value="individual" checked /> Klient indywidualny</label>
+                  <label><input type="radio" name="customContractClientType" value="company" /> Klient firmowy</label>
+                </div>
+                <div class="form-grid" id="customIndividualFields">
+                  <label>
+                    Imię i nazwisko
+                    <input type="text" id="customIndividualName" placeholder="Np. Jan Kowalski" />
+                  </label>
+                  <label>
+                    Telefon
+                    <input type="tel" id="customIndividualPhone" placeholder="Np. 500 000 000" />
+                  </label>
+                  <label>
+                    E-mail
+                    <input type="email" id="customIndividualEmail" placeholder="Np. klient@mail.pl" />
+                  </label>
+                  <label>
+                    Adres
+                    <input type="text" id="customIndividualAddress" placeholder="Np. ul. Kwiatowa 8, Warszawa" />
+                  </label>
+                </div>
+                <div class="form-grid hidden" id="customCompanyFields">
+                  <label>
+                    Nazwa firmy
+                    <input type="text" id="customCompanyName" placeholder="Np. Nowak Invest Sp. z o.o." />
+                  </label>
+                  <label>
+                    NIP
+                    <input type="text" id="customCompanyTaxId" placeholder="Np. 1234567890" />
+                  </label>
+                  <label>
+                    Osoba kontaktowa
+                    <input type="text" id="customCompanyContact" placeholder="Np. Jan Nowak" />
+                  </label>
+                  <label>
+                    Telefon
+                    <input type="tel" id="customCompanyPhone" placeholder="Np. 500 000 000" />
+                  </label>
+                  <label>
+                    E-mail
+                    <input type="email" id="customCompanyEmail" placeholder="Np. biuro@firma.pl" />
+                  </label>
+                  <label>
+                    Adres
+                    <input type="text" id="customCompanyAddress" placeholder="Np. ul. Słoneczna 4, 05-500 Piaseczno" />
+                  </label>
+                </div>
+                <div class="form-grid form-grid-double">
+                  <label>
+                    Kwota netto
+                    <input type="number" id="customContractNetValue" min="0" step="0.01" value="0" />
+                  </label>
+                  <label>
+                    Kwota VAT
+                    <input type="number" id="customContractVatValue" min="0" step="0.01" value="0" />
+                  </label>
+                </div>
+                <label>
+                  Zakres prac
+                  <textarea
+                    id="customContractScope"
+                    rows="7"
+                    placeholder="Wpisz swobodnie zakres prac. Każda nowa linia zostanie pokazana osobno w umowie."
+                  ></textarea>
+                </label>
+              </div>
+              <div class="form-grid form-grid-double" id="linkedContractIntro">
                 <label>
                   Powiązana oferta
                   <input type="text" id="linkedOffer" placeholder="Np. OF/2026/04/001" />
@@ -483,7 +574,7 @@
                 </label>
               </div>
 
-              <div class="section-box">
+              <div class="section-box" id="linkedContractSummary">
                 <div class="section-header">
                   <h4>Automatyczne dane z oferty</h4>
                 </div>
@@ -499,6 +590,25 @@
                   <div>
                     <span>Zakres prac</span>
                     <strong id="contractScope">Brak pozycji</strong>
+                  </div>
+                </div>
+              </div>
+              <div class="section-box hidden" id="customContractSummary">
+                <div class="section-header">
+                  <h4>Dane własnej umowy</h4>
+                </div>
+                <div class="summary-list contract-summary">
+                  <div>
+                    <span>Klient</span>
+                    <strong id="customContractClient">Jeszcze nie wpisano klienta</strong>
+                  </div>
+                  <div>
+                    <span>Kwota umowy</span>
+                    <strong id="customContractValue">0,00 zł</strong>
+                  </div>
+                  <div>
+                    <span>Zakres prac</span>
+                    <strong id="customContractScopePreview">Brak zakresu prac</strong>
                   </div>
                 </div>
               </div>
@@ -695,6 +805,14 @@
                   </div>
                   <div class="saved-list" id="savedContractsList">
                     <p class="empty-state">Umowy pojawią się automatycznie po zapisaniu oferty.</p>
+                  </div>
+                </section>
+                <section class="section-box archive-box">
+                  <div class="section-header">
+                    <h4>Własne umowy</h4>
+                  </div>
+                  <div class="saved-list" id="savedCustomContractsList">
+                    <p class="empty-state">Tutaj pojawią się własne umowy niezależne od ofert.</p>
                   </div>
                 </section>
               </div>

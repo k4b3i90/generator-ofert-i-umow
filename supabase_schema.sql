@@ -78,6 +78,26 @@ create table if not exists public.contracts (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.custom_contracts (
+  id uuid primary key default gen_random_uuid(),
+  contract_number text not null unique,
+  title text not null,
+  author_user_id uuid not null references public.app_users(id),
+  client_type text not null check (client_type in ('company', 'individual')),
+  client_label text not null,
+  client_details jsonb not null default '{}'::jsonb,
+  scope_text text not null default '',
+  issue_date date not null default current_date,
+  totals_net numeric(12,2) not null default 0,
+  totals_vat numeric(12,2) not null default 0,
+  totals_gross numeric(12,2) not null default 0,
+  warranty_months integer not null default 12,
+  contract_terms jsonb not null default '{}'::jsonb,
+  pdf_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.board_notes (
   id uuid primary key default gen_random_uuid(),
   author_user_id uuid not null references public.app_users(id),
@@ -101,6 +121,7 @@ create index if not exists idx_offers_issue_date on public.offers(issue_date des
 create index if not exists idx_offers_status on public.offers(status);
 create index if not exists idx_offer_items_offer_id on public.offer_items(offer_id, sort_order);
 create index if not exists idx_contracts_offer_id on public.contracts(offer_id);
+create index if not exists idx_custom_contracts_author_user_id on public.custom_contracts(author_user_id);
 create index if not exists idx_board_notes_created_at on public.board_notes(created_at desc);
 create index if not exists idx_board_note_entries_note_id on public.board_note_entries(note_id, created_at desc);
 
@@ -125,6 +146,12 @@ execute function public.set_updated_at();
 drop trigger if exists trg_contracts_updated_at on public.contracts;
 create trigger trg_contracts_updated_at
 before update on public.contracts
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists trg_custom_contracts_updated_at on public.custom_contracts;
+create trigger trg_custom_contracts_updated_at
+before update on public.custom_contracts
 for each row
 execute function public.set_updated_at();
 
