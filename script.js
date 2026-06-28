@@ -1540,24 +1540,17 @@ const exportOfferPagesPdf = async ({ offer, filename }) => {
     document.body.appendChild(container);
 
     try {
-      const canvas = await window.html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: 794,
-        width: 794,
-        scrollX: 0,
-        scrollY: 0,
-      });
+      container.style.textRendering = "optimizeLegibility";
+      container.style.webkitFontSmoothing = "antialiased";
+      const canvas = await renderNodeToCanvas(container, 794);
 
       if (index > 0) {
         doc.addPage();
       }
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+      const imgData = canvas.toDataURL("image/png");
       const pageImageHeightMm = (canvas.height * metrics.printableWidth) / canvas.width;
-      doc.addImage(imgData, "JPEG", metrics.pageMarginX, metrics.contentTop, metrics.printableWidth, pageImageHeightMm);
+      doc.addImage(imgData, "PNG", metrics.pageMarginX, metrics.contentTop, metrics.printableWidth, pageImageHeightMm);
     } finally {
       container.remove();
     }
@@ -1592,8 +1585,28 @@ const createPdf = () => {
     showToast("Biblioteki PDF nie zostały załadowane. Odśwież stronę i spróbuj ponownie.");
     return null;
   }
-  return new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  return new window.jspdf.jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+    compress: true,
+    precision: 12,
+  });
 };
+
+const getPdfRenderScale = () => Math.min(Math.max((window.devicePixelRatio || 1) * 2, 3), 4);
+
+const renderNodeToCanvas = async (node, pageWidthPx = 794) =>
+  window.html2canvas(node, {
+    scale: getPdfRenderScale(),
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+    windowWidth: pageWidthPx,
+    width: pageWidthPx,
+    scrollX: 0,
+    scrollY: 0,
+  });
 
 const preloadLogoForPdf = async () => {
   if (cachedLogoDataUrl !== null) {
@@ -1741,16 +1754,9 @@ const exportHtmlAsPdf = async ({ html, filename, compact = false }) => {
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
   try {
-    const canvas = await window.html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      windowWidth: pageWidthPx,
-      width: pageWidthPx,
-      scrollX: 0,
-      scrollY: 0,
-    });
+    container.style.textRendering = "optimizeLegibility";
+    container.style.webkitFontSmoothing = "antialiased";
+    const canvas = await renderNodeToCanvas(container, pageWidthPx);
 
     const metrics = getPdfPageMetrics();
     const slices = buildPageSliceCanvases(canvas, metrics.printableWidth, metrics.printableHeight);
@@ -1760,9 +1766,9 @@ const exportHtmlAsPdf = async ({ html, filename, compact = false }) => {
         doc.addPage();
       }
 
-      const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.98);
+      const pageImgData = pageCanvas.toDataURL("image/png");
       const pageImageHeightMm = (pageCanvas.height * metrics.printableWidth) / pageCanvas.width;
-      doc.addImage(pageImgData, "JPEG", metrics.pageMarginX, metrics.contentTop, metrics.printableWidth, pageImageHeightMm);
+      doc.addImage(pageImgData, "PNG", metrics.pageMarginX, metrics.contentTop, metrics.printableWidth, pageImageHeightMm);
     });
 
     doc.save(filename);
@@ -1891,30 +1897,65 @@ const exportContractPagesPdf = async ({ offer, filename, htmlBuilder = buildCont
     document.body.appendChild(container);
 
     try {
-      const canvas = await window.html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: 794,
-        width: 794,
-        scrollX: 0,
-        scrollY: 0,
-      });
+      container.style.textRendering = "optimizeLegibility";
+      container.style.webkitFontSmoothing = "antialiased";
+      const canvas = await renderNodeToCanvas(container, 794);
 
       if (index > 0) {
         doc.addPage();
       }
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+      const imgData = canvas.toDataURL("image/png");
       const pageImageHeightMm = (canvas.height * metrics.printableWidth) / canvas.width;
-      doc.addImage(imgData, "JPEG", metrics.pageMarginX, metrics.contentTop, metrics.printableWidth, pageImageHeightMm);
+      doc.addImage(imgData, "PNG", metrics.pageMarginX, metrics.contentTop, metrics.printableWidth, pageImageHeightMm);
     } finally {
       container.remove();
     }
   }
 
   doc.save(filename);
+};
+
+const buildWordDocumentHtml = ({ title, bodyHtml }) => `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="ProgId" content="Word.Document" />
+    <meta name="Generator" content="P&P Profinish" />
+    <meta name="Originator" content="P&P Profinish" />
+    <title>${escapeHtml(title)}</title>
+    <style>
+      @page { size: A4; margin: 18mm; }
+      body { font-family: Arial, sans-serif; color:#1f1a17; font-size:11pt; line-height:1.45; }
+      h1, h2, h3 { text-align:center; margin:0 0 12pt; }
+      h4 { margin:12pt 0 6pt; }
+      p, li { margin:0 0 7pt; }
+      table { width:100%; border-collapse:collapse; margin-top:12pt; }
+      th, td { border:1px solid #d7d1c8; padding:6pt 7pt; text-align:left; }
+      th { background:#f3ede5; }
+      ul { padding-left:18pt; }
+      .contract-document { color:#1f1a17; }
+      .signature-row { width:100%; margin-top:20pt; border-top:1px solid #d7d1c8; padding-top:12pt; }
+      .signature-row table { border:none; margin-top:0; }
+      .signature-row td { border:none; width:50%; vertical-align:top; padding:0 12pt 0 0; }
+    </style>
+  </head>
+  <body>${bodyHtml}</body>
+</html>`;
+
+const downloadWordDocument = ({ filename, title, bodyHtml }) => {
+  const html = buildWordDocumentHtml({ title, bodyHtml });
+  const blob = new Blob([`\ufeff${html}`], { type: "application/msword" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
 const renderContractPreview = () => {
@@ -1976,6 +2017,20 @@ const downloadOfferPdf = (offerId) => {
   });
 };
 
+const downloadOfferDoc = (offerId) => {
+  const offer = state.savedOffers.find((entry) => entry.id === offerId);
+  const documentLabels = getDocumentLabels(getOfferDocumentKind(offer));
+  if (!offer) {
+    showToast("Nie udało się przygotować pliku DOC.");
+    return;
+  }
+  downloadWordDocument({
+    filename: `${offer.number}-${documentLabels.filenameSuffix}.doc`,
+    title: `${documentLabels.header} ${offer.number}`,
+    bodyHtml: buildOfferPdfHtml(offer),
+  });
+};
+
 const downloadContractPdf = (offerId) => {
   const offer = state.savedOffers.find((entry) => entry.id === offerId);
   if (!offer) {
@@ -1989,6 +2044,19 @@ const downloadContractPdf = (offerId) => {
     });
   })().catch(() => {
     showToast("Nie udało się wygenerować PDF tej umowy.");
+  });
+};
+
+const downloadContractDoc = (offerId) => {
+  const offer = state.savedOffers.find((entry) => entry.id === offerId);
+  if (!offer) {
+    showToast("Nie udało się przygotować DOC tej umowy.");
+    return;
+  }
+  downloadWordDocument({
+    filename: `${offer.number}-umowa.doc`,
+    title: `Umowa ${offer.number}`,
+    bodyHtml: buildContractHtml(offer),
   });
 };
 
@@ -2009,6 +2077,19 @@ const downloadPreliminaryContractPdf = (offerId) => {
   });
 };
 
+const downloadPreliminaryContractDoc = (offerId) => {
+  const offer = state.savedOffers.find((entry) => entry.id === offerId);
+  if (!offer) {
+    showToast("Nie udało się przygotować DOC umowy wstępnej.");
+    return;
+  }
+  downloadWordDocument({
+    filename: `${offer.number}-umowa-wstepna.doc`,
+    title: `Umowa wstępna ${offer.number}`,
+    bodyHtml: buildPreliminaryContractHtml(offer),
+  });
+};
+
 const downloadCustomContractPdf = (contractId) => {
   const contract = state.savedCustomContracts.find((entry) => entry.id === contractId);
   if (!contract) {
@@ -2023,6 +2104,19 @@ const downloadCustomContractPdf = (contractId) => {
     });
   })().catch(() => {
     showToast("Nie udało się wygenerować PDF własnej umowy.");
+  });
+};
+
+const downloadCustomContractDoc = (contractId) => {
+  const contract = state.savedCustomContracts.find((entry) => entry.id === contractId);
+  if (!contract) {
+    showToast("Nie udało się przygotować DOC własnej umowy.");
+    return;
+  }
+  downloadWordDocument({
+    filename: `${contract.number}-umowa.doc`,
+    title: `Własna umowa ${contract.number}`,
+    bodyHtml: buildStandaloneContractHtml(contract),
   });
 };
 
@@ -2320,6 +2414,7 @@ const renderSavedOffers = () => {
           <div class="saved-actions">
             <button type="button" class="button button-secondary edit-offer" data-offer-id="${offer.id}">Edytuj ofertę</button>
             <button type="button" class="button button-secondary download-offer-pdf" data-offer-id="${offer.id}">Pobierz PDF</button>
+            <button type="button" class="button button-secondary download-offer-doc" data-offer-id="${offer.id}">Pobierz DOC</button>
             <button type="button" class="button button-secondary delete-offer" data-offer-id="${offer.id}">X</button>
           </div>
         </article>
@@ -2333,6 +2428,9 @@ const renderSavedOffers = () => {
   });
   savedOffersList.querySelectorAll(".download-offer-pdf").forEach((button) => {
     button.addEventListener("click", () => downloadOfferPdf(button.dataset.offerId));
+  });
+  savedOffersList.querySelectorAll(".download-offer-doc").forEach((button) => {
+    button.addEventListener("click", () => downloadOfferDoc(button.dataset.offerId));
   });
   savedOffersList.querySelectorAll(".delete-offer").forEach((button) => {
     button.addEventListener("click", () => deleteOffer(button.dataset.offerId));
@@ -2365,6 +2463,7 @@ const renderSavedReceipts = () => {
           <div class="saved-actions">
             <button type="button" class="button button-secondary edit-receipt" data-offer-id="${offer.id}">Edytuj rachunek</button>
             <button type="button" class="button button-secondary download-receipt-pdf" data-offer-id="${offer.id}">Pobierz PDF</button>
+            <button type="button" class="button button-secondary download-receipt-doc" data-offer-id="${offer.id}">Pobierz DOC</button>
             <button type="button" class="button button-secondary delete-receipt" data-offer-id="${offer.id}">X</button>
           </div>
         </article>
@@ -2377,6 +2476,9 @@ const renderSavedReceipts = () => {
   });
   savedReceiptsList.querySelectorAll(".download-receipt-pdf").forEach((button) => {
     button.addEventListener("click", () => downloadOfferPdf(button.dataset.offerId));
+  });
+  savedReceiptsList.querySelectorAll(".download-receipt-doc").forEach((button) => {
+    button.addEventListener("click", () => downloadOfferDoc(button.dataset.offerId));
   });
   savedReceiptsList.querySelectorAll(".delete-receipt").forEach((button) => {
     button.addEventListener("click", () => deleteOffer(button.dataset.offerId));
@@ -2403,7 +2505,9 @@ const renderSavedContracts = () => {
             <button type="button" class="button button-secondary edit-contract" data-offer-id="${contract.offerId}">Edytuj z oferty</button>
             <button type="button" class="button button-secondary edit-preliminary-contract" data-offer-id="${contract.offerId}">Edytuj umowę wstępną</button>
             <button type="button" class="button button-secondary download-contract-pdf" data-offer-id="${contract.offerId}">Pobierz PDF</button>
+            <button type="button" class="button button-secondary download-contract-doc" data-offer-id="${contract.offerId}">Pobierz DOC</button>
             <button type="button" class="button button-secondary download-preliminary-contract-pdf" data-offer-id="${contract.offerId}">Umowa wstępna</button>
+            <button type="button" class="button button-secondary download-preliminary-contract-doc" data-offer-id="${contract.offerId}">Wstępna DOC</button>
             <button type="button" class="button button-secondary delete-contract" data-offer-id="${contract.offerId}">X</button>
           </div>
         </article>
@@ -2420,8 +2524,14 @@ const renderSavedContracts = () => {
   savedContractsList.querySelectorAll(".download-contract-pdf").forEach((button) => {
     button.addEventListener("click", () => downloadContractPdf(button.dataset.offerId));
   });
+  savedContractsList.querySelectorAll(".download-contract-doc").forEach((button) => {
+    button.addEventListener("click", () => downloadContractDoc(button.dataset.offerId));
+  });
   savedContractsList.querySelectorAll(".download-preliminary-contract-pdf").forEach((button) => {
     button.addEventListener("click", () => downloadPreliminaryContractPdf(button.dataset.offerId));
+  });
+  savedContractsList.querySelectorAll(".download-preliminary-contract-doc").forEach((button) => {
+    button.addEventListener("click", () => downloadPreliminaryContractDoc(button.dataset.offerId));
   });
   savedContractsList.querySelectorAll(".delete-contract").forEach((button) => {
     button.addEventListener("click", () => deleteOffer(button.dataset.offerId));
@@ -2451,6 +2561,7 @@ const renderSavedCustomContracts = () => {
           <div class="saved-actions">
             <button type="button" class="button button-secondary edit-custom-contract" data-contract-id="${contract.id}">Edytuj</button>
             <button type="button" class="button button-secondary download-custom-contract-pdf" data-contract-id="${contract.id}">Pobierz PDF</button>
+            <button type="button" class="button button-secondary download-custom-contract-doc" data-contract-id="${contract.id}">Pobierz DOC</button>
             <button type="button" class="button button-secondary delete-custom-contract" data-contract-id="${contract.id}">X</button>
           </div>
         </article>
@@ -2463,6 +2574,9 @@ const renderSavedCustomContracts = () => {
   });
   savedCustomContractsList.querySelectorAll(".download-custom-contract-pdf").forEach((button) => {
     button.addEventListener("click", () => downloadCustomContractPdf(button.dataset.contractId));
+  });
+  savedCustomContractsList.querySelectorAll(".download-custom-contract-doc").forEach((button) => {
+    button.addEventListener("click", () => downloadCustomContractDoc(button.dataset.contractId));
   });
   savedCustomContractsList.querySelectorAll(".delete-custom-contract").forEach((button) => {
     button.addEventListener("click", () => deleteCustomContract(button.dataset.contractId));
