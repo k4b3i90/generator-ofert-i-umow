@@ -788,10 +788,8 @@ const getPaymentAmountLabel = (value, unit) => {
 
 const getContractTerms = () => {
   const discount = getDiscountSettings();
-  return {
+  const terms = {
     documentKind: getDocumentKind(),
-    discountType: discount.type,
-    discountValue: String(discount.value || 0),
     receivedAmount: String(getReceivedAmount()),
     contractDate: contractDate.value,
     contractCity: contractCity.value.trim() || "Warszawa",
@@ -822,6 +820,13 @@ const getContractTerms = () => {
     preliminaryPenaltyPaymentDays: preliminaryPenaltyPaymentDays.value || "7",
     preliminaryTerms: preliminaryTerms.value.trim(),
   };
+
+  if (discount.type !== "none" && discount.value > 0) {
+    terms.discountType = discount.type;
+    terms.discountValue = String(discount.value);
+  }
+
+  return terms;
 };
 
 const updatePaymentSettingsVisibility = () => {
@@ -1327,8 +1332,8 @@ const buildOfferPdfRows = (offer) => {
 };
 
 const getOfferDiscountTerms = (offer = {}) => ({
-  discountType: offer.contractTerms?.discountType,
-  discountValue: offer.contractTerms?.discountValue,
+  discountType: offer.contractTerms?.discountType || offer.discountType || offer.discount?.type || "none",
+  discountValue: offer.contractTerms?.discountValue ?? offer.discountValue ?? offer.discount?.value ?? 0,
 });
 
 const buildOfferPdfTotalsHtml = (offer) => {
@@ -1344,6 +1349,11 @@ const buildOfferPdfTotalsHtml = (offer) => {
         totals.discountType === "percent" ? `Zniżka (${String(totals.discountValue).replace(".", ",")}%)` : "Zniżka kwotowa"
       }</span><span>- ${escapeHtml(totals.discountLabel)}</span></div>`
     : "";
+  const discountedNetHtml = totals.hasDiscount
+    ? `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Netto po zniżce</span><span>${escapeHtml(
+        totals.netLabel || offer.netLabel || "-"
+      )}</span></div>`
+    : "";
   const receivedSummaryHtml = totals.hasReceivedAmount
     ? `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Wpłacono</span><span>- ${escapeHtml(
         totals.paidLabel
@@ -1355,7 +1365,10 @@ const buildOfferPdfTotalsHtml = (offer) => {
       <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Stawka VAT</span><span>${escapeHtml(vatLabel)}</span></div>
       ${discountSummaryHtml}
       ${receivedSummaryHtml}
-      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>Netto</span><span>${escapeHtml(totals.hasDiscount ? totals.baseNetLabel : totals.netLabel || offer.netLabel || "-")}</span></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>${totals.hasDiscount ? "Netto przed zniżką" : "Netto"}</span><span>${escapeHtml(
+        totals.hasDiscount ? totals.baseNetLabel : totals.netLabel || offer.netLabel || "-"
+      )}</span></div>
+      ${discountedNetHtml}
       <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>VAT</span><span>${escapeHtml(totals.vatLabel || offer.vatLabel || "-")}</span></div>
       <div style="display:flex; justify-content:space-between; padding:6px 0; font-weight:700;"><span>${totals.hasReceivedAmount ? "Do zapłaty" : "Razem"}</span><span>${escapeHtml(
         totals.hasReceivedAmount ? totals.remainingLabel : totals.grossLabel || offer.grossLabel || offer.totalLabel
@@ -2166,8 +2179,9 @@ const editOffer = (offerId, tabToOpen = "offers") => {
   document.getElementById("offerNotes").value = offer.notes;
   warrantyPeriod.value = offer.warranty;
   vatRate.value = offer.vatRate;
-  discountType.value = offer.contractTerms.discountType || "none";
-  discountValue.value = offer.contractTerms.discountValue || "0";
+  const savedDiscount = getDiscountSettings(offer.contractTerms);
+  discountType.value = savedDiscount.type;
+  discountValue.value = savedDiscount.type === "none" ? "0" : String(savedDiscount.value);
   receivedAmount.value = offer.contractTerms.receivedAmount || "0";
   contractDate.value = offer.contractTerms.contractDate || "";
   contractCity.value = offer.contractTerms.contractCity || "Warszawa";
@@ -2839,6 +2853,9 @@ vatRate?.addEventListener("change", () => {
   syncContractPreview();
 });
 discountType?.addEventListener("change", () => {
+  if (discountType.value === "none") {
+    discountValue.value = "0";
+  }
   updateTotals();
   syncContractPreview();
 });
