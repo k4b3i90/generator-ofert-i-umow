@@ -786,7 +786,7 @@ const getPaymentAmountLabel = (value, unit) => {
   return unit === "%" ? `${normalizedValue}%` : `${normalizedValue} zł`;
 };
 
-const getContractTerms = () => {
+const getContractTerms = (totals = getTotalsSnapshot()) => {
   const discount = getDiscountSettings();
   const terms = {
     documentKind: getDocumentKind(),
@@ -824,6 +824,15 @@ const getContractTerms = () => {
   if (discount.type !== "none" && discount.value > 0) {
     terms.discountType = discount.type;
     terms.discountValue = String(discount.value);
+    terms.discount = {
+      type: discount.type,
+      value: discount.value,
+      amount: totals.discountAmount,
+      baseNet: totals.baseNet,
+      net: totals.net,
+      vat: totals.vat,
+      gross: totals.gross,
+    };
   }
 
   return terms;
@@ -1332,18 +1341,62 @@ const buildOfferPdfRows = (offer) => {
 };
 
 const getOfferDiscountTerms = (offer = {}) => ({
-  discountType: offer.contractTerms?.discountType || offer.discountType || offer.discount?.type || "none",
-  discountValue: offer.contractTerms?.discountValue ?? offer.discountValue ?? offer.discount?.value ?? 0,
+  discountType:
+    offer.contractTerms?.discount?.type ||
+    offer.contractTerms?.discountType ||
+    offer.discountType ||
+    offer.discount?.type ||
+    "none",
+  discountValue:
+    offer.contractTerms?.discount?.value ??
+    offer.contractTerms?.discountValue ??
+    offer.discountValue ??
+    offer.discount?.value ??
+    0,
 });
+
+const getStoredOfferTotal = (value, fallback) => {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : fallback;
+};
 
 const buildOfferPdfTotalsHtml = (offer) => {
   const vatLabel = offer.vatRate === "none" ? "Bez faktury / bez VAT" : `${offer.vatRate}%`;
-  const totals = calculateDocumentTotals({
+  const calculatedTotals = calculateDocumentTotals({
     items: offer.items || [],
     vatRateValue: offer.vatRate,
     discount: getOfferDiscountTerms(offer),
     receivedAmountValue: getReceivedAmount(offer.contractTerms || {}),
   });
+  const storedDiscount = offer.contractTerms?.discount;
+  const storedDiscountAmount = Number(storedDiscount?.amount);
+  const hasStoredDiscount =
+    (storedDiscount?.type === "percent" || storedDiscount?.type === "amount") &&
+    Number.isFinite(storedDiscountAmount) &&
+    storedDiscountAmount > 0;
+  const baseNet = getStoredOfferTotal(storedDiscount?.baseNet, calculatedTotals.baseNet);
+  const net = getStoredOfferTotal(storedDiscount?.net, calculatedTotals.net);
+  const vat = getStoredOfferTotal(storedDiscount?.vat, calculatedTotals.vat);
+  const gross = getStoredOfferTotal(storedDiscount?.gross, calculatedTotals.gross);
+  const paidAmount = Math.min(gross, calculatedTotals.paidAmount);
+  const totals = {
+    ...calculatedTotals,
+    baseNet,
+    net,
+    vat,
+    gross,
+    paidAmount,
+    remaining: Math.max(0, gross - paidAmount),
+    discountAmount: hasStoredDiscount ? storedDiscountAmount : calculatedTotals.discountAmount,
+    hasDiscount: hasStoredDiscount || calculatedTotals.hasDiscount,
+    baseNetLabel: currency.format(baseNet),
+    netLabel: currency.format(net),
+    vatLabel: currency.format(vat),
+    grossLabel: currency.format(gross),
+    paidLabel: currency.format(paidAmount),
+    remainingLabel: currency.format(Math.max(0, gross - paidAmount)),
+    discountLabel: currency.format(hasStoredDiscount ? storedDiscountAmount : calculatedTotals.discountAmount),
+  };
   const discountSummaryHtml = totals.hasDiscount
     ? `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #e4ddd4;"><span>${
         totals.discountType === "percent" ? `Zniżka (${String(totals.discountValue).replace(".", ",")}%)` : "Zniżka kwotowa"
@@ -2017,7 +2070,7 @@ const renderContractPreview = () => {
     grossLabel: totals.grossLabel,
     warranty: warrantyPeriod.value,
     clientDetails: getClientDetails(),
-    contractTerms: getContractTerms(),
+    contractTerms: getContractTerms(totals),
   };
 
   contractPreview.innerHTML = buildContractHtml(offer);
@@ -2768,7 +2821,7 @@ const saveOffer = async () => {
     grossLabel: totals.grossLabel,
     vatRate: vatRate.value,
     warranty: warrantyPeriod.value,
-    contractTerms: getContractTerms(),
+    contractTerms: getContractTerms(totals),
     totals: {
       net: totals.net,
       vat: totals.vat,
@@ -3020,7 +3073,7 @@ const saveCustomContract = async () => {
     vatLabel: totals.vatLabel,
     grossLabel: totals.grossLabel,
     totals,
-    contractTerms: getContractTerms(),
+    contractTerms: getContractTerms(totals),
   };
 
   try {
