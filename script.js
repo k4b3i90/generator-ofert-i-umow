@@ -1493,15 +1493,15 @@ const buildOfferPdfTableHtml = (rowsHtml) => `
   </table>
 `;
 
-const buildOfferPdfTrailingHtml = (offer) => {
-  return `
-    ${buildOfferPdfTotalsHtml(offer)}
-    <section style="padding-top:12px;">
-      <h3 style="margin:0 0 8px; font-size:13px;">Uwagi</h3>
-      <div style="white-space:pre-wrap;">${formatMultilineHtml(offer.notes)}</div>
-    </section>
-  `;
-};
+const buildOfferPdfNotesHtml = (notes, continuation = false) => `
+  <section style="padding-top:12px;">
+    <h3 style="margin:0 0 8px; font-size:13px;">${continuation ? "Uwagi - ciąg dalszy" : "Uwagi"}</h3>
+    <div style="white-space:pre-wrap; overflow-wrap:anywhere;">${escapeHtml(notes || "-")}</div>
+  </section>
+`;
+
+const buildOfferPdfTrailingHtml = (offer) =>
+  `${buildOfferPdfTotalsHtml(offer)}${buildOfferPdfNotesHtml(String(offer.notes ?? "").trim())}`;
 
 const buildOfferPageDocumentHtml = (contentHtml) => `
   <div style="font-family: Arial, sans-serif; color:#1f1a17; background:#ffffff; font-size:11px; line-height:1.35; padding:0;">
@@ -1538,6 +1538,8 @@ const buildOfferPdfRowBlocks = (offer) => {
 const paginateOfferContent = (offer) => {
   const rowBlocks = buildOfferPdfRowBlocks(offer);
   const trailingHtml = buildOfferPdfTrailingHtml(offer);
+  const totalsHtml = buildOfferPdfTotalsHtml(offer);
+  const notesText = String(offer.notes ?? "").trim() || "-";
   const measureHost = document.createElement("div");
   measureHost.style.position = "fixed";
   measureHost.style.left = "-10000px";
@@ -1559,6 +1561,44 @@ const paginateOfferContent = (offer) => {
 
   const buildPageHtml = (pageRows, continuation = false, extraHtml = "") =>
     `${buildOfferPdfHeaderHtml(offer, continuation)}${buildOfferPdfTableHtml(pageRows.join(""))}${extraHtml}`;
+
+  const appendNotesPages = () => {
+    const noteTokens = notesText.match(/\S+|\s+/g) || ["-"];
+    let tokenIndex = 0;
+    let includeTotals = true;
+    let notesContinuation = false;
+
+    while (tokenIndex < noteTokens.length) {
+      const pagePrefix = `${buildOfferPdfHeaderHtml(offer, true)}${includeTotals ? totalsHtml : ""}`;
+      let noteChunk = "";
+
+      while (tokenIndex < noteTokens.length) {
+        const candidateChunk = `${noteChunk}${noteTokens[tokenIndex]}`;
+        const candidateHtml = `${pagePrefix}${buildOfferPdfNotesHtml(candidateChunk, notesContinuation)}`;
+
+        if (noteChunk && measurePageHeight(candidateHtml) > maxContentHeightPx) {
+          break;
+        }
+
+        noteChunk = candidateChunk;
+        tokenIndex += 1;
+
+        if (measurePageHeight(candidateHtml) > maxContentHeightPx) {
+          break;
+        }
+      }
+
+      if (!noteChunk && includeTotals) {
+        pages.push(buildOfferPageDocumentHtml(pagePrefix));
+        includeTotals = false;
+        continue;
+      }
+
+      pages.push(buildOfferPageDocumentHtml(`${pagePrefix}${buildOfferPdfNotesHtml(noteChunk, notesContinuation)}`));
+      includeTotals = false;
+      notesContinuation = true;
+    }
+  };
 
   let currentRows = [];
   let isContinuation = false;
@@ -1586,7 +1626,7 @@ const paginateOfferContent = (offer) => {
     if (currentRows.length) {
       pages.push(buildOfferPageDocumentHtml(buildPageHtml(currentRows, isContinuation)));
     }
-    pages.push(buildOfferPageDocumentHtml(`${buildOfferPdfHeaderHtml(offer, true)}${trailingHtml}`));
+    appendNotesPages();
   }
 
   measureHost.remove();
